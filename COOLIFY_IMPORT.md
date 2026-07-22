@@ -1,6 +1,13 @@
-# Manual Coolify Import Handoff
+# Coolify Import Handoff
 
-No step in this document has been executed by this repository. These are operator instructions for a later Coolify import.
+The repository workflow is `scripts/create-resources.sh`. It generates every environment, creates the Coolify resources, uploads values, and configures domains without deploying anything.
+
+```bash
+scripts/create-resources.sh --check
+scripts/create-resources.sh --apply --reset --ssh-key /absolute/path/to/the/server/ssh/key
+```
+
+The remaining sections explain what the automation configures and are useful for manual verification.
 
 ## 1. Generate and store env files
 
@@ -26,7 +33,7 @@ Before importing anything:
 1. Add a read-only GitHub source token as the secret environment variable `GIT_AUTH_TOKEN` for repository-built platform stacks. It must be able to read the private repositories referenced by that stack.
 2. Replace Nudgra's `OPERATOR_EMAIL_ALLOWLIST` placeholder.
 3. Add optional OAuth, payment, social-provider, and API credentials only to the platform that owns them.
-4. Configure `BACKUP_S3_BUCKET` and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
+4. The backup destination values are intentionally blank. Configure `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
 
 ## 3. Create the shared external network
 
