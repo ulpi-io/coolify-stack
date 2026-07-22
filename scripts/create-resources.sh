@@ -276,6 +276,12 @@ for stack in "${stacks[@]}"; do
   fi
   unset env_payload
 
+  uploaded_envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not verify $slug environment"
+  duplicate_count=$(jq '[group_by(.key)[] | select(length > 1)] | length' <<<"$uploaded_envs_json")
+  placeholder_count=$(jq '[.[] | select((.value // "") == "required" or ((.value // "") | endswith(" is required")))] | length' <<<"$uploaded_envs_json")
+  [[ "$duplicate_count" == 0 ]] || die "$slug environment contains duplicate keys after upload"
+  [[ "$placeholder_count" == 0 ]] || die "$slug environment still contains required placeholders after upload"
+
   if [[ "$domains_json" != '[]' ]]; then
     domain_payload=$(jq -n --argjson domains "$domains_json" '{docker_compose_domains:$domains}')
     if ! printf '%s' "$domain_payload" | api PATCH "applications/$application_uuid" >/dev/null; then
