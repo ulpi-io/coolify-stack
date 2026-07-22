@@ -15,7 +15,7 @@ services:
       dockerfile_inline: |
         FROM node:20-alpine AS builder
         WORKDIR /app
-        RUN apk add --no-cache libc6-compat python3 make g++
+        RUN apk add --no-cache libc6-compat openssl python3 make g++
         RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
         COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
         COPY packages/ ./packages/
@@ -28,7 +28,7 @@ services:
 
         FROM node:20-alpine AS production
         WORKDIR /app
-        RUN apk add --no-cache curl dumb-init
+        RUN apk add --no-cache curl dumb-init openssl
         RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
         RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
         COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
@@ -99,7 +99,7 @@ services:
       dockerfile_inline: |
         FROM node:20-alpine AS builder
         WORKDIR /app
-        RUN apk add --no-cache libc6-compat python3 make g++
+        RUN apk add --no-cache libc6-compat openssl python3 make g++
         RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
         COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
         COPY packages/ ./packages/
