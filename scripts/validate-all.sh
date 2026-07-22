@@ -79,6 +79,25 @@ if rg -n 'www\.(pm|post|ig|workflow|crm)\.con\.fyi' \
   exit 1
 fi
 
+grep -Fq 'is_container_label_escape_enabled:false' scripts/create-resources.sh || {
+  echo "Coolify Compose resources must allow trusted network-label interpolation" >&2
+  exit 1
+}
+for compose_file in \
+  platforms/plane/compose.yaml \
+  platforms/postiz/compose.yaml \
+  platforms/nudgra-oss/compose.yaml \
+  platforms/n8n/compose.yaml \
+  platforms/twenty/compose.yaml
+do
+  # Match the literal Compose-time interpolation expression.
+  # shellcheck disable=SC2016
+  grep -Fq 'traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}' "$compose_file" || {
+    echo "$compose_file must pin Traefik to the Coolify resource network" >&2
+    exit 1
+  }
+done
+
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
 [[ "$compose_count" = 17 ]] || { echo "Expected 17 Compose files, found $compose_count" >&2; exit 1; }
