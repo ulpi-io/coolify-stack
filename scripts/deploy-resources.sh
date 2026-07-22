@@ -9,6 +9,7 @@ token_name=ogg-coolify-stack-deploy
 token_file=/tmp/ogg-coolify-stack-deploy-token
 api_managed=0
 token_created=0
+active_deployment_uuid=""
 
 usage() {
   cat >&2 <<'EOF'
@@ -72,8 +73,16 @@ ssh_options=(-o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes -i "$ss
 
 cleanup() {
   local exit_code=$?
-  trap - EXIT INT TERM
+  trap - EXIT
+  trap '' INT TERM
   if [[ $api_managed -eq 1 ]]; then
+    if [[ $exit_code -ne 0 && "$active_deployment_uuid" =~ ^[A-Za-z0-9]+$ ]]; then
+      # Cancel only the deployment queued by this run. This prevents a local
+      # interruption from leaving a remote Coolify deployment running.
+      # shellcheck disable=SC2029
+      ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+        "docker exec coolify sh -lc 'api_token=\$(cat $token_file 2>/dev/null || true); if [ -n \"\$api_token\" ]; then curl -sS -o /dev/null -X POST -H \"Authorization: Bearer \$api_token\" http://127.0.0.1:8080/api/v1/deployments/$active_deployment_uuid/cancel || true; fi'" >/dev/null 2>&1 || true
+    fi
     # shellcheck disable=SC2029
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify sh -lc 'api_token=\$(cat $token_file 2>/dev/null || true); if [ -n \"\$api_token\" ]; then curl -sS -o /dev/null -H \"Authorization: Bearer \$api_token\" http://127.0.0.1:8080/api/v1/disable || true; fi'" >/dev/null 2>&1 || true
@@ -126,6 +135,7 @@ for resource_name in "${resources[@]}"; do
   echo "Deploying $resource_name..."
   deployment_json=$(api POST "applications/$application_uuid/start?force=true&instant_deploy=true") || die "could not queue $resource_name"
   deployment_uuid=$(jq -er '.deployment_uuid' <<<"$deployment_json") || die "Coolify returned no deployment UUID for $resource_name"
+  active_deployment_uuid=$deployment_uuid
   started_at=$SECONDS
 
   while true; do
@@ -135,9 +145,11 @@ for resource_name in "${resources[@]}"; do
       finished)
         application_json=$(api GET "applications/$application_uuid") || die "could not inspect $resource_name after deployment"
         echo "Deployed $resource_name ($(jq -r '.status // "unknown"' <<<"$application_json"))"
+        active_deployment_uuid=""
         break
         ;;
       failed|cancelled-by-user)
+        active_deployment_uuid=""
         die "$resource_name deployment ended with status $status (deployment $deployment_uuid)"
         ;;
       queued|in_progress)
