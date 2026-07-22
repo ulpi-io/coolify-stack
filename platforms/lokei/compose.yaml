@@ -24,6 +24,7 @@ x-laravel-env: &laravel-env
   REDIS_USERNAME: ${QUEUE_USERNAME:?QUEUE_USERNAME is required}
   REDIS_PASSWORD: ${QUEUE_PASSWORD:?QUEUE_PASSWORD is required}
   REDIS_PREFIX: ${QUEUE_PREFIX:?QUEUE_PREFIX is required}
+  HORIZON_PREFIX: "${QUEUE_PREFIX:?QUEUE_PREFIX is required}horizon:"
   CACHE_STORE: redis
   QUEUE_CONNECTION: redis
   LOKEI_WEB_URL: ${APP_URL:?APP_URL is required}
