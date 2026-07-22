@@ -309,10 +309,12 @@ for stack in "${stacks[@]}"; do
   unset env_payload
 
   uploaded_envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not verify $slug environment"
-  duplicate_count=$(jq '[group_by(.key)[] | select(length > 1)] | length' <<<"$uploaded_envs_json")
+  # Coolify mirrors each production row into preview scope. A duplicate means
+  # the same key appears more than once inside the same scope.
+  duplicate_count=$(jq '[group_by([.is_preview, .key])[] | select(length > 1)] | length' <<<"$uploaded_envs_json")
   placeholder_count=$(jq '[.[] | select((.value // "") == "required" or ((.value // "") | endswith(" is required")))] | length' <<<"$uploaded_envs_json")
   expected_signature=$(awk -F= '/^[[:space:]]*#/ || /^[[:space:]]*$/ {next} {print $1}' "$env_file" | sort | paste -sd, -)
-  actual_signature=$(jq -r '[.[].key] | sort | join(",")' <<<"$uploaded_envs_json")
+  actual_signature=$(jq -r '[.[] | select(.is_preview == false) | .key] | sort | join(",")' <<<"$uploaded_envs_json")
   [[ "$duplicate_count" == 0 ]] || die "$slug environment contains duplicate keys after upload"
   [[ "$placeholder_count" == 0 ]] || die "$slug environment still contains required placeholders after upload"
   [[ "$actual_signature" == "$expected_signature" ]] || die "$slug environment keys do not exactly match its generated env file"
