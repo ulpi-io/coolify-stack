@@ -434,7 +434,7 @@ services:
     image: temporalio/ui:2.34.0
     environment:
       TEMPORAL_ADDRESS: temporal:7233
-      TEMPORAL_CORS_ORIGINS: ${TEMPORAL_CORS_ORIGINS:-https://www.post.con.fyi}
+      TEMPORAL_CORS_ORIGINS: ${TEMPORAL_CORS_ORIGINS:-https://post.con.fyi}
     depends_on:
       temporal:
         condition: service_healthy

@@ -83,11 +83,11 @@ stacks=(
   'lokei|Lokei|/platforms/lokei/compose.yaml|Lokei Stack|[{"name":"web","domain":"https://www.lokei.dev"},{"name":"nginx","domain":"https://api.lokei.dev"},{"name":"relay","domain":"https://relay.lokei.dev"}]|Production Lokei web, API, workers, and relay stack.'
   'albert|Albert|/platforms/albert/compose.yaml|Albert Stack|[{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","domain":"https://api.albert.con.fyi"}]|Production Albert web and API stack.'
   'record-cloud|Record Cloud|/platforms/record-cloud/compose.yaml|Record Cloud Stack|[{"name":"web","domain":"https://www.record.con.fyi"},{"name":"api","domain":"https://api.record.con.fyi"}]|Production Record Cloud web and API stack.'
-  'plane|Plane|/platforms/plane/compose.yaml|Plane Stack|[{"name":"proxy","domain":"https://www.pm.con.fyi"}]|Production Plane project-management stack.'
-  'postiz|Postiz|/platforms/postiz/compose.yaml|Postiz Stack|[{"name":"postiz","domain":"https://www.post.con.fyi"}]|Production Postiz social publishing stack.'
-  'nudgra-oss|Nudgra OSS|/platforms/nudgra-oss/compose.yaml|Nudgra OSS Stack|[{"name":"app","domain":"https://www.ig.con.fyi"}]|Production Nudgra OSS application stack.'
-  'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://www.workflow.con.fyi"}]|Production n8n workflow automation stack.'
-  'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://www.crm.con.fyi"}]|Production Twenty CRM stack.'
+  'plane|Plane|/platforms/plane/compose.yaml|Plane Stack|[{"name":"proxy","domain":"https://pm.con.fyi"}]|Production Plane project-management stack.'
+  'postiz|Postiz|/platforms/postiz/compose.yaml|Postiz Stack|[{"name":"postiz","domain":"https://post.con.fyi"}]|Production Postiz social publishing stack.'
+  'nudgra-oss|Nudgra OSS|/platforms/nudgra-oss/compose.yaml|Nudgra OSS Stack|[{"name":"app","domain":"https://ig.con.fyi"}]|Production Nudgra OSS application stack.'
+  'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://workflow.con.fyi"}]|Production n8n workflow automation stack.'
+  'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
 )
 
 cleanup() {

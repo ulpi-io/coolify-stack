@@ -22,11 +22,27 @@ for slug in "${platforms[@]}"; do
 done
 
 for generator in platforms/*/generate-env.sh; do
+  slug=$(basename "$(dirname "$generator")")
   app_url=$(grep '^APP_URL=' "$generator" | head -1 | cut -d= -f2-)
-  [[ "$app_url" == https://www.* ]] || {
-    echo "$generator must use a canonical https://www.* APP_URL" >&2
-    exit 1
-  }
+  case "$slug" in
+    plane) expected_app_url=https://pm.con.fyi ;;
+    postiz) expected_app_url=https://post.con.fyi ;;
+    nudgra-oss) expected_app_url=https://ig.con.fyi ;;
+    n8n) expected_app_url=https://workflow.con.fyi ;;
+    twenty) expected_app_url=https://crm.con.fyi ;;
+    *) expected_app_url='https://www.*' ;;
+  esac
+  if [[ "$expected_app_url" = 'https://www.*' ]]; then
+    [[ "$app_url" == https://www.* ]] || {
+      echo "$generator must use a canonical https://www.* APP_URL" >&2
+      exit 1
+    }
+  else
+    [[ "$app_url" = "$expected_app_url" ]] || {
+      echo "$generator must use APP_URL=$expected_app_url" >&2
+      exit 1
+    }
+  fi
   api_url=$(grep '^API_PUBLIC_URL=' "$generator" | head -1 | cut -d= -f2- || true)
   [[ -z "$api_url" || "$api_url" == https://api.* ]] || {
     echo "$generator must use a canonical https://api.* API_PUBLIC_URL" >&2
@@ -42,6 +58,26 @@ grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","
   echo "Albert web/API domain mapping is missing" >&2
   exit 1
 }
+
+for domain_mapping in \
+  '{"name":"proxy","domain":"https://pm.con.fyi"}' \
+  '{"name":"postiz","domain":"https://post.con.fyi"}' \
+  '{"name":"app","domain":"https://ig.con.fyi"}' \
+  '{"name":"n8n","domain":"https://workflow.con.fyi"}' \
+  '{"name":"twenty","domain":"https://crm.con.fyi"}'
+do
+  grep -Fq "$domain_mapping" scripts/create-resources.sh || {
+    echo "Bare con.fyi domain mapping is missing: $domain_mapping" >&2
+    exit 1
+  }
+done
+
+if rg -n 'www\.(pm|post|ig|workflow|crm)\.con\.fyi' \
+  README.md REPOSITORIES.md COOLIFY_IMPORT.md DIGITALOCEAN_SERVER.md \
+  infrastructure platforms scripts >/dev/null; then
+  echo "A retired www-prefixed con.fyi platform domain is still present" >&2
+  exit 1
+fi
 
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')

@@ -30,9 +30,9 @@ tmp=$(mktemp "$(dirname "$output")/.plane.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://www.pm.con.fyi
+APP_URL=https://pm.con.fyi
 PLANE_RELEASE=v1.3.0
-APP_HOST=www.pm.con.fyi
+APP_HOST=pm.con.fyi
 SECRET_KEY=$(random_hex)
 LIVE_SERVER_SECRET_KEY=$(random_hex)
 EOF
