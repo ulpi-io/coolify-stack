@@ -10,6 +10,8 @@ x-service-defaults: &service-defaults
 services:
   postiz:
     <<: *service-defaults
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     image: ${POSTIZ_IMAGE:?required}
     expose: ["5000"]
     environment:

@@ -10,6 +10,8 @@ x-service-defaults: &service-defaults
 services:
   app:
     <<: *service-defaults
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     build:
       context: https://github.com/MaikoCode/nudgra-oss.git#main
       dockerfile: Dockerfile
