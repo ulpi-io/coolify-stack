@@ -92,6 +92,7 @@ services:
     expose: ["3000"]
     environment:
       NODE_ENV: production
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
       API_URL: http://api:3001
     networks: [internal]

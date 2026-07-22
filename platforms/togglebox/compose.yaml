@@ -128,7 +128,7 @@ services:
         COPY --chown=nextjs:nodejs apps/admin/next.config.* ./apps/admin/
         USER nextjs
         EXPOSE 3001
-        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://localhost:3001/api/health || exit 1
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://127.0.0.1:3001/ || exit 1
         WORKDIR /app/apps/admin
         ENV NODE_ENV=production PORT=3001 NEXT_TELEMETRY_DISABLED=1
         CMD ["dumb-init", "pnpm", "start"]
