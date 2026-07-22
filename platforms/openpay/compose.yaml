@@ -63,7 +63,6 @@ services:
     <<: *service-defaults
     build: *openpay-build
     restart: "no"
-    entrypoint: []
     command: ["php", "artisan", "migrate", "--force"]
     environment: *openpay-env
     networks: [internal, shared]
