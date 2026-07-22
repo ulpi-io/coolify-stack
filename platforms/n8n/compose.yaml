@@ -1,0 +1,82 @@
+name: n8n
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-n8n-env: &n8n-env
+  GENERIC_TIMEZONE: UTC
+  TZ: UTC
+  DB_TYPE: postgresdb
+  DB_POSTGRESDB_DATABASE: ${DB_DATABASE:?required}
+  DB_POSTGRESDB_HOST: ${DB_HOST:?required}
+  DB_POSTGRESDB_PORT: ${DB_PORT:?required}
+  DB_POSTGRESDB_USER: ${DB_USERNAME:?required}
+  DB_POSTGRESDB_SCHEMA: public
+  DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD:?required}
+  EXECUTIONS_MODE: queue
+  QUEUE_BULL_REDIS_HOST: ${QUEUE_HOST:?required}
+  QUEUE_BULL_REDIS_PORT: ${QUEUE_PORT:?required}
+  QUEUE_BULL_REDIS_USERNAME: ${QUEUE_USERNAME:?required}
+  QUEUE_BULL_REDIS_PASSWORD: ${QUEUE_PASSWORD:?required}
+  QUEUE_BULL_REDIS_PREFIX: ${QUEUE_PREFIX:?required}
+  QUEUE_HEALTH_CHECK_ACTIVE: "true"
+  N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?required}
+  N8N_RUNNERS_ENABLED: "true"
+  N8N_RUNNERS_MODE: external
+  N8N_RUNNERS_BROKER_LISTEN_ADDRESS: 0.0.0.0
+  N8N_RUNNERS_BROKER_PORT: "5679"
+  N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN:?required}
+  N8N_NATIVE_PYTHON_RUNNER: "true"
+  N8N_RUNNERS_MAX_CONCURRENCY: "5"
+  N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+  N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+  N8N_PROXY_HOPS: "1"
+services:
+  n8n:
+    <<: *service-defaults
+    image: ${N8N_IMAGE:?required}
+    expose: ["5678"]
+    environment:
+      <<: *n8n-env
+      N8N_EDITOR_BASE_URL: ${APP_URL:?required}
+      WEBHOOK_URL: ${APP_URL:?required}
+      N8N_HOST: ${APP_HOST:?required}
+      N8N_PROTOCOL: https
+      OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: "true"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks: [internal, shared]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5678/healthz >/dev/null"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+  worker:
+    <<: *service-defaults
+    image: ${N8N_IMAGE:?required}
+    command: worker
+    environment: *n8n-env
+    volumes:
+      - n8n-data:/home/node/.n8n
+    networks: [internal, shared]
+  task-runners:
+    <<: *service-defaults
+    image: ${N8N_RUNNERS_IMAGE:?required}
+    environment:
+      N8N_RUNNERS_TASK_BROKER_URI: http://worker:5679
+      N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN:?required}
+      N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT: "15"
+      N8N_RUNNERS_MAX_CONCURRENCY: "5"
+    networks: [internal]
+volumes:
+  n8n-data:
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

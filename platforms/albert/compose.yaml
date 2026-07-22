@@ -1,0 +1,98 @@
+name: albert
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-laravel-env: &laravel-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:?APP_URL is required}
+  APP_KEY: ${APP_KEY:?APP_KEY is required}
+  DB_CONNECTION: mysql
+  DB_HOST: ${DB_HOST:?DB_HOST is required}
+  DB_PORT: ${DB_PORT:?DB_PORT is required}
+  DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+  DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: ${QUEUE_HOST:?QUEUE_HOST is required}
+  REDIS_PORT: ${QUEUE_PORT:?QUEUE_PORT is required}
+  REDIS_USERNAME: ${QUEUE_USERNAME:?QUEUE_USERNAME is required}
+  REDIS_PASSWORD: ${QUEUE_PASSWORD:?QUEUE_PASSWORD is required}
+  REDIS_PREFIX: ${QUEUE_PREFIX:?QUEUE_PREFIX is required}
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: redis
+  MAIL_MAILER: smtp
+  MAIL_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+  MAIL_PORT: ${SMTP_PORT:?SMTP_PORT is required}
+  MAIL_ENCRYPTION: "null"
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?MAIL_FROM_ADDRESS is required}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:?MAIL_FROM_NAME is required}
+  LOG_CHANNEL: stderr
+
+x-albert-app: &albert-app
+  image: ${ALBERT_APP_IMAGE:?required}
+  environment:
+    <<: *laravel-env
+    QDRANT_URL: ${QDRANT_URL:?required}
+    QDRANT_API_KEY: ${QDRANT_API_KEY:?required}
+    REVERB_APP_ID: ${REVERB_APP_ID:?required}
+    REVERB_APP_KEY: ${REVERB_APP_KEY:?required}
+    REVERB_APP_SECRET: ${REVERB_APP_SECRET:?required}
+    REVERB_HOST: reverb
+    REVERB_PORT: "8080"
+  networks: [internal, shared]
+services:
+  app:
+    <<: [*service-defaults, *albert-app]
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+  nginx:
+    <<: *service-defaults
+    image: ${ALBERT_NGINX_IMAGE:?required}
+    networks: [internal]
+    depends_on:
+      app:
+        condition: service_healthy
+  worker:
+    <<: [*service-defaults, *albert-app]
+    command: ["php", "artisan", "horizon"]
+  scheduler:
+    <<: [*service-defaults, *albert-app]
+    command: ["sh", "-c", "while true; do php artisan schedule:run --no-interaction; sleep 60; done"]
+  reverb:
+    <<: [*service-defaults, *albert-app]
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+  web:
+    <<: *service-defaults
+    image: ${ALBERT_WEB_IMAGE:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://nginx
+      NEXT_PUBLIC_BASE_URL: ${APP_URL:?required}
+      NEXT_PUBLIC_REVERB_APP_KEY: ${REVERB_APP_KEY:?required}
+      SESSION_SECRET: ${SESSION_SECRET:?required}
+    networks: [internal]
+  agents:
+    <<: *service-defaults
+    image: ${ALBERT_AGENTS_IMAGE:?required}
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://nginx
+      NEXT_PUBLIC_REVERB_APP_KEY: ${REVERB_APP_KEY:?required}
+      SESSION_SECRET: ${SESSION_SECRET:?required}
+    networks: [internal]
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

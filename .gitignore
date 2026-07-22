@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+generated/
+infrastructure/generated/
+platforms/*/generated/
+*.shared.env
+*.secrets
+.DS_Store

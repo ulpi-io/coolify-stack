@@ -1,0 +1,289 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "coolify-phase-3-rollout-hardening",
+    "title": "Phase 3: Static Validation and Coolify Handoff",
+    "sourceRequest": "coolify_deployment_system_agent_prompt_v3.md",
+    "inventory": "REPOSITORIES.md",
+    "planningMode": "EXPANSION",
+    "defaultReview": "codex",
+    "deliveryScope": "compose artifacts only",
+    "environmentScope": "production only",
+    "generatedAt": "2026-07-22T07:31:45.392Z",
+    "jsonIsSourceOfTruth": true
+  },
+  "overview": "All 17 folders pass one local validator and the manual import guide is complete.",
+  "scopeChallenge": {
+    "selectedMode": "EXPANSION",
+    "reviewDefault": "codex",
+    "decision": "The scope is the complete stack, not a deployment system: 17 Compose files, 17 environment generators, one static validator, and Coolify handoff documentation."
+  },
+  "prerequisites": [
+    "REPOSITORIES.md remains the authoritative 16-platform/domain inventory.",
+    "SHARED_INFRASTRUCTURE.md remains the authoritative shared-service, consumer, database-engine, and isolation map.",
+    "The implementation agent must inspect the pinned repository or recipe evidence before writing each platform process command or image reference.",
+    "Docker Compose v2, shellcheck, openssl, and standard POSIX tools are available for local validation."
+  ],
+  "nonGoals": [
+    "No Coolify API calls, UI automation, server mutation, DNS change, resource creation, or deployment execution.",
+    "No custom Python deployment control plane, provider framework, CI rollout system, branch-protection work, or repository source PRs.",
+    "No application-data migration, legacy-volume reuse, database-engine conversion, or production cutover.",
+    "No staging environment and no duplicate shared backing services inside platform Compose files."
+  ],
+  "contracts": [
+    "Folder contract: infrastructure/compose.yaml plus infrastructure/generate-env.sh, and platforms/<slug>/compose.yaml plus platforms/<slug>/generate-env.sh for all 16 slugs.",
+    "The infrastructure generator creates shared service credentials and matching per-platform shared-env fragments; each platform generator consumes only its own fragment and produces its local .env.",
+    "Every generator refuses overwrite without --force, creates mode-0600 files, uses cryptographic randomness, prints no secrets, and is safe to rerun.",
+    "Platform Compose files use the Coolify external shared network and environment-provided shared endpoints; depends_on is limited to services in the same file.",
+    "All images are immutable or exactly versioned, all application services have health checks where supported, all required variables fail closed, and no shared backing port is publicly published."
+  ],
+  "existingCodeLeverage": [
+    "REPOSITORIES.md supplies all platform names, component groupings, and domains.",
+    "SHARED_INFRASTRUCTURE.md supplies all shared-service consumers and isolation decisions.",
+    "N8N_CURRENT_RECIPE.md and TWENTY_CURRENT_RECIPE.md supply their complete current multi-process Compose baselines.",
+    "Immutable source-tree evidence already captured for the first-party and third-party repositories supplies real Dockerfiles, commands, health routes, and environment names."
+  ],
+  "sharedInfrastructureMap": {
+    "definition": "Coolify deploys these artifacts later but is not part of the Compose stack.",
+    "platformProvided": [
+      {
+        "component": "Coolify and Traefik",
+        "responsibility": "External deployment, private networking, domains, and TLS; untouched by this implementation plan."
+      }
+    ],
+    "sharedServices": [
+      {
+        "component": "MySQL 8.4 LTS",
+        "responsibility": "Fresh databases and users for MySQL platforms"
+      },
+      {
+        "component": "PostgreSQL 16",
+        "responsibility": "Fresh databases and roles for PostgreSQL platforms and Temporal persistence"
+      },
+      {
+        "component": "Valkey 8 cache",
+        "responsibility": "Disposable caches, sessions, limits, and locks"
+      },
+      {
+        "component": "Valkey 8 queue",
+        "responsibility": "Durable Redis-compatible queues with AOF everysec and noeviction"
+      },
+      {
+        "component": "MinIO",
+        "responsibility": "Shared bucket-isolated object storage"
+      },
+      {
+        "component": "Qdrant",
+        "responsibility": "Shared collection-isolated vector storage"
+      },
+      {
+        "component": "RabbitMQ",
+        "responsibility": "Shared vhost-isolated AMQP messaging"
+      },
+      {
+        "component": "Elasticsearch",
+        "responsibility": "Shared index/role-isolated search and Temporal visibility"
+      },
+      {
+        "component": "Temporal",
+        "responsibility": "Shared namespace/task-queue-isolated durable workflows"
+      },
+      {
+        "component": "Mailpit",
+        "responsibility": "Private capture-only SMTP with no relay"
+      },
+      {
+        "component": "Monitoring",
+        "responsibility": "A pinned resource-bounded monitoring and alerting implementation selected in the Compose task"
+      },
+      {
+        "component": "Backup",
+        "responsibility": "A pinned off-server backup implementation selected in the Compose task"
+      }
+    ],
+    "perApplicationIsolation": [
+      "Database and restricted user/role",
+      "Valkey ACL user and prefixes",
+      "MinIO bucket and service account",
+      "RabbitMQ vhost and user",
+      "Elasticsearch index prefix and role",
+      "Temporal namespace and task queues",
+      "Qdrant collection ownership"
+    ],
+    "dedicatedFallbacks": [
+      "A platform Compose may include a dedicated dependency only when SHARED_INFRASTRUCTURE.md explicitly records a proven exception."
+    ]
+  },
+  "architecture": {
+    "diagram": "flowchart LR\n      Infra[infrastructure/ compose plus generator] --> Network[Coolify external shared network]\n      Network --> P1[platforms/kensi-ai]\n      Network --> P2[platforms/agentshq]\n      Network --> PN[14 other platform folders]\n      Generator[Infrastructure generated shared fragments] --> G1[Each platform generate-env]\n      G1 --> P1\n      G1 --> P2\n      G1 --> PN\n      Infra --> Validate[Local validate-all]\n      P1 --> Validate\n      P2 --> Validate\n      PN --> Validate\n      Validate --> Docs[Manual Coolify import handoff]",
+    "taskGroups": [
+      {
+        "component": "static-validation-and-handoff",
+        "tasks": [
+          "TASK-018",
+          "TASK-019"
+        ]
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "TASK-018",
+      "title": "Validate the complete 17-folder Compose system",
+      "description": "Add one local validator for the infrastructure folder and all 16 platform folders, plus ignore rules preventing generated secrets from entering Git. It performs static validation only and never contacts Coolify or the server.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "L",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "scripts/validate-all.sh discovers exactly one infrastructure Compose/generator pair and exactly 16 platform Compose/generator pairs, generates all environments in a temporary directory, and runs docker compose config on all 17 stacks.",
+        "Validation fails on missing/extra platform folders, latest tags, missing health checks, public backing-service ports, duplicate shared services inside a platform, cross-stack depends_on, unresolved variables, generator overwrite, non-0600 secret files, or secret output.",
+        ".gitignore excludes every generated .env, infrastructure/generated output, temporary validation output, database dump, snapshot, certificate, and recovery credential while leaving generator scripts tracked."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "scripts/validate-all.sh",
+        ".gitignore"
+      ],
+      "writeScope": [
+        "scripts/validate-all.sh",
+        ".gitignore"
+      ],
+      "validateCommand": "shellcheck scripts/validate-all.sh infrastructure/generate-env.sh platforms/*/generate-env.sh && scripts/validate-all.sh",
+      "review": "codex",
+      "phase": "validation-handoff",
+      "externalDependsOn": [
+        "TASK-002",
+        "TASK-003",
+        "TASK-004",
+        "TASK-005",
+        "TASK-006",
+        "TASK-007",
+        "TASK-008",
+        "TASK-009",
+        "TASK-010",
+        "TASK-011",
+        "TASK-012",
+        "TASK-013",
+        "TASK-014",
+        "TASK-015",
+        "TASK-016",
+        "TASK-017"
+      ]
+    },
+    {
+      "id": "TASK-019",
+      "title": "Document Coolify import and configuration handoff",
+      "description": "Document the exact folder contract, environment-generation workflow, static validation, Coolify import order, domains, shared-network connection, and manual verification steps without executing any deployment.",
+      "priority": "P1",
+      "type": "docs",
+      "effort": "M",
+      "agent": "general-purpose",
+      "dependsOn": [
+        "TASK-018"
+      ],
+      "labels": [],
+      "acceptanceCriteria": [
+        "README.md lists the infrastructure folder and all 16 platform folders, explains that every folder owns compose.yaml plus generate-env.sh, and shows the one-command local validation workflow.",
+        "COOLIFY_IMPORT.md explains how the user generates each env, imports infrastructure first and each platform separately into Coolify, connects the same external network, assigns the canonical domain, and verifies health without exposing backing ports.",
+        "Documentation explicitly states that repository tooling performs no deployment, DNS mutation, server mutation, database migration, or Coolify API call and never instructs the user to commit generated secrets."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "README.md",
+        "COOLIFY_IMPORT.md"
+      ],
+      "writeScope": [
+        "README.md",
+        "COOLIFY_IMPORT.md"
+      ],
+      "validateCommand": "rg -q '17' README.md && rg -q 'generate-env.sh' README.md && for slug in ${platforms.map(p => p.slug).join(' ')}; do rg -q \"$slug\" README.md || exit 1; done && rg -q 'infrastructure first' COOLIFY_IMPORT.md && rg -q 'no deployment|does not deploy' COOLIFY_IMPORT.md",
+      "review": "codex",
+      "phase": "validation-handoff",
+      "externalDependsOn": []
+    }
+  ],
+  "dependencyMap": {
+    "TASK-018": [],
+    "TASK-019": [
+      "TASK-018"
+    ]
+  },
+  "failureModes": [
+    "Missing or conflicting source evidence blocks only the affected platform Compose task; it is never replaced by a guessed command or image.",
+    "A generator missing its matching shared fragment, required input, openssl, or safe output permissions exits non-zero without creating a partial environment.",
+    "An existing env file is preserved unless --force is explicit; secrets are never printed or committed.",
+    "Any unresolved Compose variable, latest tag, public backing port, duplicate shared service, or cross-stack depends_on fails local validation.",
+    "The repository never interprets successful static validation as a successful deployment."
+  ],
+  "shipCut": {
+    "milestone1": "The infrastructure folder and all 16 platform folders each contain a statically valid compose.yaml and generate-env.sh.",
+    "milestone2": "The 17-folder validator passes and the manual Coolify import guide covers every platform and domain without executing deployment."
+  },
+  "taskRiskMap": [
+    {
+      "task": "TASK-018",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck scripts/validate-all.sh infrastructure/generate-env.sh platforms/*/generate-env.sh && scripts/validate-all.sh"
+    },
+    {
+      "task": "TASK-019",
+      "category": "documentation",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "rg -q '17' README.md && rg -q 'generate-env.sh' README.md && for slug in ${platforms.map(p => p.slug).join(' ')}; do rg -q \"$slug\" README.md || exit 1; done && rg -q 'infrastructure first' COOLIFY_IMPORT.md && rg -q 'no deployment|does not deploy' COOLIFY_IMPORT.md"
+    }
+  ],
+  "testCoverageMap": [
+    {
+      "task": "TASK-018",
+      "testType": "full static contract",
+      "validateCommand": "shellcheck scripts/validate-all.sh infrastructure/generate-env.sh platforms/*/generate-env.sh && scripts/validate-all.sh"
+    },
+    {
+      "task": "TASK-019",
+      "testType": "documentation contract",
+      "validateCommand": "rg -q '17' README.md && rg -q 'generate-env.sh' README.md && for slug in ${platforms.map(p => p.slug).join(' ')}; do rg -q \"$slug\" README.md || exit 1; done && rg -q 'infrastructure first' COOLIFY_IMPORT.md && rg -q 'no deployment|does not deploy' COOLIFY_IMPORT.md"
+    }
+  ],
+  "executionSummary": {
+    "taskCount": 2,
+    "layerCount": 2,
+    "layers": [
+      [
+        "TASK-018"
+      ],
+      [
+        "TASK-019"
+      ]
+    ],
+    "criticalPath": [
+      "TASK-018",
+      "TASK-019"
+    ],
+    "externalPrerequisites": {
+      "TASK-018": [
+        "TASK-002",
+        "TASK-003",
+        "TASK-004",
+        "TASK-005",
+        "TASK-006",
+        "TASK-007",
+        "TASK-008",
+        "TASK-009",
+        "TASK-010",
+        "TASK-011",
+        "TASK-012",
+        "TASK-013",
+        "TASK-014",
+        "TASK-015",
+        "TASK-016",
+        "TASK-017"
+      ]
+    },
+    "milestoneOneTask": "TASK-018",
+    "finalTask": "TASK-019"
+  }
+}

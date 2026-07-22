@@ -1,0 +1,39 @@
+name: nudgra-oss
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  app:
+    <<: *service-defaults
+    image: ${NUDGRA_IMAGE:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+      DATABASE_SSL_REJECT_UNAUTHORIZED: "false"
+      SITE_URL: ${APP_URL:?required}
+      BETTER_AUTH_URL: ${APP_URL:?required}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?required}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY:?required}
+      TRUSTED_ORIGINS: ${APP_URL:?required}
+      TRUST_PROXY_HEADERS: "true"
+      OPERATOR_EMAIL_ALLOWLIST: ${OPERATOR_EMAIL_ALLOWLIST:?required}
+      DEFAULT_WORKSPACE_TIMEZONE: UTC
+    networks: [internal, shared]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/health >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

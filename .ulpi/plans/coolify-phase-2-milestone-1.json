@@ -1,0 +1,929 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "coolify-phase-2-milestone-1",
+    "title": "Phase 2: Sixteen Platform Folders",
+    "sourceRequest": "coolify_deployment_system_agent_prompt_v3.md",
+    "inventory": "REPOSITORIES.md",
+    "planningMode": "EXPANSION",
+    "defaultReview": "codex",
+    "deliveryScope": "compose artifacts only",
+    "environmentScope": "production only",
+    "generatedAt": "2026-07-22T07:31:45.392Z",
+    "jsonIsSourceOfTruth": true
+  },
+  "overview": "All 16 platform Compose and environment-generator pairs pass folder-scoped validation.",
+  "scopeChallenge": {
+    "selectedMode": "EXPANSION",
+    "reviewDefault": "codex",
+    "decision": "The scope is the complete stack, not a deployment system: 17 Compose files, 17 environment generators, one static validator, and Coolify handoff documentation."
+  },
+  "prerequisites": [
+    "REPOSITORIES.md remains the authoritative 16-platform/domain inventory.",
+    "SHARED_INFRASTRUCTURE.md remains the authoritative shared-service, consumer, database-engine, and isolation map.",
+    "The implementation agent must inspect the pinned repository or recipe evidence before writing each platform process command or image reference.",
+    "Docker Compose v2, shellcheck, openssl, and standard POSIX tools are available for local validation."
+  ],
+  "nonGoals": [
+    "No Coolify API calls, UI automation, server mutation, DNS change, resource creation, or deployment execution.",
+    "No custom Python deployment control plane, provider framework, CI rollout system, branch-protection work, or repository source PRs.",
+    "No application-data migration, legacy-volume reuse, database-engine conversion, or production cutover.",
+    "No staging environment and no duplicate shared backing services inside platform Compose files."
+  ],
+  "contracts": [
+    "Folder contract: infrastructure/compose.yaml plus infrastructure/generate-env.sh, and platforms/<slug>/compose.yaml plus platforms/<slug>/generate-env.sh for all 16 slugs.",
+    "The infrastructure generator creates shared service credentials and matching per-platform shared-env fragments; each platform generator consumes only its own fragment and produces its local .env.",
+    "Every generator refuses overwrite without --force, creates mode-0600 files, uses cryptographic randomness, prints no secrets, and is safe to rerun.",
+    "Platform Compose files use the Coolify external shared network and environment-provided shared endpoints; depends_on is limited to services in the same file.",
+    "All images are immutable or exactly versioned, all application services have health checks where supported, all required variables fail closed, and no shared backing port is publicly published."
+  ],
+  "existingCodeLeverage": [
+    "REPOSITORIES.md supplies all platform names, component groupings, and domains.",
+    "SHARED_INFRASTRUCTURE.md supplies all shared-service consumers and isolation decisions.",
+    "N8N_CURRENT_RECIPE.md and TWENTY_CURRENT_RECIPE.md supply their complete current multi-process Compose baselines.",
+    "Immutable source-tree evidence already captured for the first-party and third-party repositories supplies real Dockerfiles, commands, health routes, and environment names."
+  ],
+  "sharedInfrastructureMap": {
+    "definition": "Coolify deploys these artifacts later but is not part of the Compose stack.",
+    "platformProvided": [
+      {
+        "component": "Coolify and Traefik",
+        "responsibility": "External deployment, private networking, domains, and TLS; untouched by this implementation plan."
+      }
+    ],
+    "sharedServices": [
+      {
+        "component": "MySQL 8.4 LTS",
+        "responsibility": "Fresh databases and users for MySQL platforms"
+      },
+      {
+        "component": "PostgreSQL 16",
+        "responsibility": "Fresh databases and roles for PostgreSQL platforms and Temporal persistence"
+      },
+      {
+        "component": "Valkey 8 cache",
+        "responsibility": "Disposable caches, sessions, limits, and locks"
+      },
+      {
+        "component": "Valkey 8 queue",
+        "responsibility": "Durable Redis-compatible queues with AOF everysec and noeviction"
+      },
+      {
+        "component": "MinIO",
+        "responsibility": "Shared bucket-isolated object storage"
+      },
+      {
+        "component": "Qdrant",
+        "responsibility": "Shared collection-isolated vector storage"
+      },
+      {
+        "component": "RabbitMQ",
+        "responsibility": "Shared vhost-isolated AMQP messaging"
+      },
+      {
+        "component": "Elasticsearch",
+        "responsibility": "Shared index/role-isolated search and Temporal visibility"
+      },
+      {
+        "component": "Temporal",
+        "responsibility": "Shared namespace/task-queue-isolated durable workflows"
+      },
+      {
+        "component": "Mailpit",
+        "responsibility": "Private capture-only SMTP with no relay"
+      },
+      {
+        "component": "Monitoring",
+        "responsibility": "A pinned resource-bounded monitoring and alerting implementation selected in the Compose task"
+      },
+      {
+        "component": "Backup",
+        "responsibility": "A pinned off-server backup implementation selected in the Compose task"
+      }
+    ],
+    "perApplicationIsolation": [
+      "Database and restricted user/role",
+      "Valkey ACL user and prefixes",
+      "MinIO bucket and service account",
+      "RabbitMQ vhost and user",
+      "Elasticsearch index prefix and role",
+      "Temporal namespace and task queues",
+      "Qdrant collection ownership"
+    ],
+    "dedicatedFallbacks": [
+      "A platform Compose may include a dedicated dependency only when SHARED_INFRASTRUCTURE.md explicitly records a proven exception."
+    ]
+  },
+  "architecture": {
+    "diagram": "flowchart LR\n      Infra[infrastructure/ compose plus generator] --> Network[Coolify external shared network]\n      Network --> P1[platforms/kensi-ai]\n      Network --> P2[platforms/agentshq]\n      Network --> PN[14 other platform folders]\n      Generator[Infrastructure generated shared fragments] --> G1[Each platform generate-env]\n      G1 --> P1\n      G1 --> P2\n      G1 --> PN\n      Infra --> Validate[Local validate-all]\n      P1 --> Validate\n      P2 --> Validate\n      PN --> Validate\n      Validate --> Docs[Manual Coolify import handoff]",
+    "taskGroups": [
+      {
+        "component": "sixteen-platform-folders",
+        "tasks": [
+          "TASK-002",
+          "TASK-003",
+          "TASK-004",
+          "TASK-005",
+          "TASK-006",
+          "TASK-007",
+          "TASK-008",
+          "TASK-009",
+          "TASK-010",
+          "TASK-011",
+          "TASK-012",
+          "TASK-013",
+          "TASK-014",
+          "TASK-015",
+          "TASK-016",
+          "TASK-017"
+        ]
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "TASK-002",
+      "title": "Create the Kensi AI platform stack",
+      "description": "Create one production Compose file for Kensi AI, combining ulpi-io/kensi-ai-api and ulpi-io/kensi-ai-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, cache Valkey, queue Valkey, optional MinIO, and Mailpit when SMTP variables are present through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/kensi-ai/compose.yaml contains the verified API, web, worker, and scheduler, uses immutable image variables or exact image versions, targets https://kensi.ai, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, optional MinIO, and Mailpit when SMTP variables are present.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/kensi-ai/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching kensi-ai shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/kensi-ai/compose.yaml",
+        "platforms/kensi-ai/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/kensi-ai/compose.yaml",
+        "platforms/kensi-ai/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/kensi-ai/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/kensi-ai/generate-env.sh --shared-env \"$tmp_dir/platforms/kensi-ai.shared.env\" --output \"$tmp_dir/kensi-ai.env\" && docker compose --env-file \"$tmp_dir/kensi-ai.env\" -f platforms/kensi-ai/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-003",
+      "title": "Create the AgentsHQ platform stack",
+      "description": "Create one production Compose file for AgentsHQ, combining ulpi-io/agentshq-api and ulpi-io/agentshq-web into one logical Coolify platform stack. It contains API and web and connects to MySQL 8.4 through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/agentshq/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://www.agentshq.sh/, and references only the required shared endpoints: MySQL 8.4.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/agentshq/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching agentshq shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/agentshq/compose.yaml",
+        "platforms/agentshq/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/agentshq/compose.yaml",
+        "platforms/agentshq/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/agentshq/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/agentshq/generate-env.sh --shared-env \"$tmp_dir/platforms/agentshq.shared.env\" --output \"$tmp_dir/agentshq.env\" && docker compose --env-file \"$tmp_dir/agentshq.env\" -f platforms/agentshq/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-004",
+      "title": "Create the OpenKudos / TeamToast platform stack",
+      "description": "Create one production Compose file for OpenKudos / TeamToast, combining ulpi-io/open-kudos-api and ulpi-io/open-kudos-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, cache Valkey, queue Valkey, and Mailpit whenever its mail variables are enabled through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/open-kudos/compose.yaml contains the verified API, web, worker, and scheduler, uses immutable image variables or exact image versions, targets https://www.teamtoast.ai/, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, and Mailpit whenever its mail variables are enabled.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/open-kudos/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching open-kudos shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/open-kudos/compose.yaml",
+        "platforms/open-kudos/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/open-kudos/compose.yaml",
+        "platforms/open-kudos/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/open-kudos/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-kudos/generate-env.sh --shared-env \"$tmp_dir/platforms/open-kudos.shared.env\" --output \"$tmp_dir/open-kudos.env\" && docker compose --env-file \"$tmp_dir/open-kudos.env\" -f platforms/open-kudos/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-005",
+      "title": "Create the Insight / Clavinci platform stack",
+      "description": "Create one production Compose file for Insight / Clavinci, combining ulpi-io/insight into one logical Coolify platform stack. It contains API and dashboard and connects to MySQL 8.4 through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/insight/compose.yaml contains the verified API and dashboard, uses immutable image variables or exact image versions, targets https://clavinci.com, and references only the required shared endpoints: MySQL 8.4.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/insight/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching insight shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/insight/compose.yaml",
+        "platforms/insight/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/insight/compose.yaml",
+        "platforms/insight/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/insight/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/insight/generate-env.sh --shared-env \"$tmp_dir/platforms/insight.shared.env\" --output \"$tmp_dir/insight.env\" && docker compose --env-file \"$tmp_dir/insight.env\" -f platforms/insight/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-006",
+      "title": "Create the Togglebox platform stack",
+      "description": "Create one production Compose file for Togglebox, combining ulpi-io/togglebox into one logical Coolify platform stack. It contains MySQL-compatible API and admin and connects to MySQL 8.4; DynamoDB is forbidden through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/togglebox/compose.yaml contains the verified MySQL-compatible API and admin, uses immutable image variables or exact image versions, targets https://togglebox.dev, and references only the required shared endpoints: MySQL 8.4; DynamoDB is forbidden.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/togglebox/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching togglebox shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/togglebox/compose.yaml",
+        "platforms/togglebox/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/togglebox/compose.yaml",
+        "platforms/togglebox/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/togglebox/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/togglebox/generate-env.sh --shared-env \"$tmp_dir/platforms/togglebox.shared.env\" --output \"$tmp_dir/togglebox.env\" && docker compose --env-file \"$tmp_dir/togglebox.env\" -f platforms/togglebox/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-007",
+      "title": "Create the OpenPay platform stack",
+      "description": "Create one production Compose file for OpenPay, combining CiprianSpiridon/OpenPayApi and CiprianSpiridon/OpenPayWeb into one logical Coolify platform stack. It contains API, web, worker/Horizon when enabled, and scheduler and connects to MySQL 8.4, database or Valkey-backed cache/queues as selected, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/openpay/compose.yaml contains the verified API, web, worker/Horizon when enabled, and scheduler, uses immutable image variables or exact image versions, targets https://www.openpay.fyi/, and references only the required shared endpoints: MySQL 8.4, database or Valkey-backed cache/queues as selected, optional MinIO, and Mailpit.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/openpay/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching openpay shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/openpay/compose.yaml",
+        "platforms/openpay/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/openpay/compose.yaml",
+        "platforms/openpay/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/openpay/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/openpay/generate-env.sh --shared-env \"$tmp_dir/platforms/openpay.shared.env\" --output \"$tmp_dir/openpay.env\" && docker compose --env-file \"$tmp_dir/openpay.env\" -f platforms/openpay/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-008",
+      "title": "Create the Ploon platform stack",
+      "description": "Create one production Compose file for Ploon, combining ulpi-io/ploon-web into one logical Coolify platform stack. It contains stateless web and connects to No stateful shared dependency unless source evidence proves an API requirement through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/ploon/compose.yaml contains the verified stateless web, uses immutable image variables or exact image versions, targets https://ploon.ai, and references only the required shared endpoints: No stateful shared dependency unless source evidence proves an API requirement.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/ploon/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching ploon shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/ploon/compose.yaml",
+        "platforms/ploon/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/ploon/compose.yaml",
+        "platforms/ploon/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/ploon/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/ploon/generate-env.sh --shared-env \"$tmp_dir/platforms/ploon.shared.env\" --output \"$tmp_dir/ploon.env\" && docker compose --env-file \"$tmp_dir/ploon.env\" -f platforms/ploon/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-009",
+      "title": "Create the Open Growth Group website platform stack",
+      "description": "Create one production Compose file for Open Growth Group website, combining CiprianSpiridon/open-growth-group-website into one logical Coolify platform stack. It contains stateless website and connects to No stateful shared dependency through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/open-growth-group/compose.yaml contains the verified stateless website, uses immutable image variables or exact image versions, targets https://opengrowthgroup.co, and references only the required shared endpoints: No stateful shared dependency.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/open-growth-group/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching open-growth-group shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/open-growth-group/compose.yaml",
+        "platforms/open-growth-group/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/open-growth-group/compose.yaml",
+        "platforms/open-growth-group/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/open-growth-group/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-growth-group/generate-env.sh --shared-env \"$tmp_dir/platforms/open-growth-group.shared.env\" --output \"$tmp_dir/open-growth-group.env\" && docker compose --env-file \"$tmp_dir/open-growth-group.env\" -f platforms/open-growth-group/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-010",
+      "title": "Create the Lokei platform stack",
+      "description": "Create one production Compose file for Lokei, combining ulpi-io/lokei into one logical Coolify platform stack. It contains web/API, relay, Horizon worker, and scheduler and connects to MySQL 8.4, cache Valkey, and queue Valkey through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/lokei/compose.yaml contains the verified web/API, relay, Horizon worker, and scheduler, uses immutable image variables or exact image versions, targets https://lokei.dev, and references only the required shared endpoints: MySQL 8.4, cache Valkey, and queue Valkey.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/lokei/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching lokei shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/lokei/compose.yaml",
+        "platforms/lokei/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/lokei/compose.yaml",
+        "platforms/lokei/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/lokei/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/lokei/generate-env.sh --shared-env \"$tmp_dir/platforms/lokei.shared.env\" --output \"$tmp_dir/lokei.env\" && docker compose --env-file \"$tmp_dir/lokei.env\" -f platforms/lokei/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-011",
+      "title": "Create the Albert platform stack",
+      "description": "Create one production Compose file for Albert, combining ulpi-io/albert into one logical Coolify platform stack. It contains API, web, Horizon worker, scheduler, and Reverb and connects to MySQL 8.4, cache Valkey, queue Valkey, and Qdrant through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/albert/compose.yaml contains the verified API, web, Horizon worker, scheduler, and Reverb, uses immutable image variables or exact image versions, targets https://albert.con.fyi, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, and Qdrant.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/albert/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching albert shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/albert/compose.yaml",
+        "platforms/albert/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/albert/compose.yaml",
+        "platforms/albert/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/albert/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/albert/generate-env.sh --shared-env \"$tmp_dir/platforms/albert.shared.env\" --output \"$tmp_dir/albert.env\" && docker compose --env-file \"$tmp_dir/albert.env\" -f platforms/albert/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-012",
+      "title": "Create the Record Cloud platform stack",
+      "description": "Create one production Compose file for Record Cloud, combining ulpi-io/record-cloud into one logical Coolify platform stack. It contains API and web and connects to MySQL 8.4, MinIO, and Mailpit through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/record-cloud/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://record.con.fyi, and references only the required shared endpoints: MySQL 8.4, MinIO, and Mailpit.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/record-cloud/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching record-cloud shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/record-cloud/compose.yaml",
+        "platforms/record-cloud/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/record-cloud/compose.yaml",
+        "platforms/record-cloud/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/record-cloud/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/record-cloud/generate-env.sh --shared-env \"$tmp_dir/platforms/record-cloud.shared.env\" --output \"$tmp_dir/record-cloud.env\" && docker compose --env-file \"$tmp_dir/record-cloud.env\" -f platforms/record-cloud/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-013",
+      "title": "Create the Plane platform stack",
+      "description": "Create one production Compose file for Plane, combining makeplane/plane into one logical Coolify platform stack. It contains pinned Plane application services and connects to PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "L",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/plane/compose.yaml contains the verified pinned Plane application services, uses immutable image variables or exact image versions, targets https://pm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/plane/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching plane shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/plane/compose.yaml",
+        "platforms/plane/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/plane/compose.yaml",
+        "platforms/plane/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/plane/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/plane/generate-env.sh --shared-env \"$tmp_dir/platforms/plane.shared.env\" --output \"$tmp_dir/plane.env\" && docker compose --env-file \"$tmp_dir/plane.env\" -f platforms/plane/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-014",
+      "title": "Create the Postiz platform stack",
+      "description": "Create one production Compose file for Postiz, combining ulpi-io/postiz-docker-compose into one logical Coolify platform stack. It contains pinned Postiz fork application services and connects to PostgreSQL 16, Valkey, Temporal, Elasticsearch, and its verified uploads storage contract through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "L",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/postiz/compose.yaml contains the verified pinned Postiz fork application services, uses immutable image variables or exact image versions, targets https://post.con.fyi, and references only the required shared endpoints: PostgreSQL 16, Valkey, Temporal, Elasticsearch, and its verified uploads storage contract.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/postiz/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching postiz shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/postiz/compose.yaml",
+        "platforms/postiz/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/postiz/compose.yaml",
+        "platforms/postiz/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/postiz/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/postiz/generate-env.sh --shared-env \"$tmp_dir/platforms/postiz.shared.env\" --output \"$tmp_dir/postiz.env\" && docker compose --env-file \"$tmp_dir/postiz.env\" -f platforms/postiz/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-015",
+      "title": "Create the Nudgra OSS platform stack",
+      "description": "Create one production Compose file for Nudgra OSS, combining MaikoCode/nudgra-oss into one logical Coolify platform stack. It contains pinned Nudgra application services and connects to PostgreSQL 16 with pgcrypto and pg-boss through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "M",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/nudgra-oss/compose.yaml contains the verified pinned Nudgra application services, uses immutable image variables or exact image versions, targets https://ig.con.fyi, and references only the required shared endpoints: PostgreSQL 16 with pgcrypto and pg-boss.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/nudgra-oss/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching nudgra-oss shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/nudgra-oss/compose.yaml",
+        "platforms/nudgra-oss/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/nudgra-oss/compose.yaml",
+        "platforms/nudgra-oss/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/nudgra-oss/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/nudgra-oss/generate-env.sh --shared-env \"$tmp_dir/platforms/nudgra-oss.shared.env\" --output \"$tmp_dir/nudgra-oss.env\" && docker compose --env-file \"$tmp_dir/nudgra-oss.env\" -f platforms/nudgra-oss/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-016",
+      "title": "Create the n8n platform stack",
+      "description": "Create one production Compose file for n8n, combining N8N_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts and connects to PostgreSQL 16 and queue Valkey through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "L",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/n8n/compose.yaml contains the verified n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts, uses immutable image variables or exact image versions, targets https://workflow.con.fyi, and references only the required shared endpoints: PostgreSQL 16 and queue Valkey.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/n8n/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching n8n shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/n8n/compose.yaml",
+        "platforms/n8n/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/n8n/compose.yaml",
+        "platforms/n8n/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/n8n/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/n8n/generate-env.sh --shared-env \"$tmp_dir/platforms/n8n.shared.env\" --output \"$tmp_dir/n8n.env\" && docker compose --env-file \"$tmp_dir/n8n.env\" -f platforms/n8n/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    },
+    {
+      "id": "TASK-017",
+      "title": "Create the Twenty platform stack",
+      "description": "Create one production Compose file for Twenty, combining TWENTY_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts and connects to PostgreSQL 16, cache Valkey, pg-boss, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.",
+      "priority": "P1",
+      "type": "infra",
+      "effort": "L",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "platforms/twenty/compose.yaml contains the verified Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts, uses immutable image variables or exact image versions, targets https://crm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, pg-boss, optional MinIO, and Mailpit.",
+        "The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.",
+        "platforms/twenty/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching twenty shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "platforms/twenty/compose.yaml",
+        "platforms/twenty/generate-env.sh"
+      ],
+      "writeScope": [
+        "platforms/twenty/compose.yaml",
+        "platforms/twenty/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck platforms/twenty/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/twenty/generate-env.sh --shared-env \"$tmp_dir/platforms/twenty.shared.env\" --output \"$tmp_dir/twenty.env\" && docker compose --env-file \"$tmp_dir/twenty.env\" -f platforms/twenty/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "platform-stacks",
+      "externalDependsOn": [
+        "TASK-001"
+      ]
+    }
+  ],
+  "dependencyMap": {
+    "TASK-002": [],
+    "TASK-003": [],
+    "TASK-004": [],
+    "TASK-005": [],
+    "TASK-006": [],
+    "TASK-007": [],
+    "TASK-008": [],
+    "TASK-009": [],
+    "TASK-010": [],
+    "TASK-011": [],
+    "TASK-012": [],
+    "TASK-013": [],
+    "TASK-014": [],
+    "TASK-015": [],
+    "TASK-016": [],
+    "TASK-017": []
+  },
+  "failureModes": [
+    "Missing or conflicting source evidence blocks only the affected platform Compose task; it is never replaced by a guessed command or image.",
+    "A generator missing its matching shared fragment, required input, openssl, or safe output permissions exits non-zero without creating a partial environment.",
+    "An existing env file is preserved unless --force is explicit; secrets are never printed or committed.",
+    "Any unresolved Compose variable, latest tag, public backing port, duplicate shared service, or cross-stack depends_on fails local validation.",
+    "The repository never interprets successful static validation as a successful deployment."
+  ],
+  "shipCut": {
+    "milestone1": "The infrastructure folder and all 16 platform folders each contain a statically valid compose.yaml and generate-env.sh.",
+    "milestone2": "The 17-folder validator passes and the manual Coolify import guide covers every platform and domain without executing deployment."
+  },
+  "taskRiskMap": [
+    {
+      "task": "TASK-002",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/kensi-ai/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/kensi-ai/generate-env.sh --shared-env \"$tmp_dir/platforms/kensi-ai.shared.env\" --output \"$tmp_dir/kensi-ai.env\" && docker compose --env-file \"$tmp_dir/kensi-ai.env\" -f platforms/kensi-ai/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-003",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/agentshq/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/agentshq/generate-env.sh --shared-env \"$tmp_dir/platforms/agentshq.shared.env\" --output \"$tmp_dir/agentshq.env\" && docker compose --env-file \"$tmp_dir/agentshq.env\" -f platforms/agentshq/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-004",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/open-kudos/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-kudos/generate-env.sh --shared-env \"$tmp_dir/platforms/open-kudos.shared.env\" --output \"$tmp_dir/open-kudos.env\" && docker compose --env-file \"$tmp_dir/open-kudos.env\" -f platforms/open-kudos/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-005",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/insight/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/insight/generate-env.sh --shared-env \"$tmp_dir/platforms/insight.shared.env\" --output \"$tmp_dir/insight.env\" && docker compose --env-file \"$tmp_dir/insight.env\" -f platforms/insight/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-006",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/togglebox/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/togglebox/generate-env.sh --shared-env \"$tmp_dir/platforms/togglebox.shared.env\" --output \"$tmp_dir/togglebox.env\" && docker compose --env-file \"$tmp_dir/togglebox.env\" -f platforms/togglebox/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-007",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/openpay/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/openpay/generate-env.sh --shared-env \"$tmp_dir/platforms/openpay.shared.env\" --output \"$tmp_dir/openpay.env\" && docker compose --env-file \"$tmp_dir/openpay.env\" -f platforms/openpay/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-008",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/ploon/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/ploon/generate-env.sh --shared-env \"$tmp_dir/platforms/ploon.shared.env\" --output \"$tmp_dir/ploon.env\" && docker compose --env-file \"$tmp_dir/ploon.env\" -f platforms/ploon/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-009",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/open-growth-group/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-growth-group/generate-env.sh --shared-env \"$tmp_dir/platforms/open-growth-group.shared.env\" --output \"$tmp_dir/open-growth-group.env\" && docker compose --env-file \"$tmp_dir/open-growth-group.env\" -f platforms/open-growth-group/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-010",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/lokei/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/lokei/generate-env.sh --shared-env \"$tmp_dir/platforms/lokei.shared.env\" --output \"$tmp_dir/lokei.env\" && docker compose --env-file \"$tmp_dir/lokei.env\" -f platforms/lokei/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-011",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/albert/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/albert/generate-env.sh --shared-env \"$tmp_dir/platforms/albert.shared.env\" --output \"$tmp_dir/albert.env\" && docker compose --env-file \"$tmp_dir/albert.env\" -f platforms/albert/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-012",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/record-cloud/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/record-cloud/generate-env.sh --shared-env \"$tmp_dir/platforms/record-cloud.shared.env\" --output \"$tmp_dir/record-cloud.env\" && docker compose --env-file \"$tmp_dir/record-cloud.env\" -f platforms/record-cloud/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-013",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/plane/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/plane/generate-env.sh --shared-env \"$tmp_dir/platforms/plane.shared.env\" --output \"$tmp_dir/plane.env\" && docker compose --env-file \"$tmp_dir/plane.env\" -f platforms/plane/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-014",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/postiz/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/postiz/generate-env.sh --shared-env \"$tmp_dir/platforms/postiz.shared.env\" --output \"$tmp_dir/postiz.env\" && docker compose --env-file \"$tmp_dir/postiz.env\" -f platforms/postiz/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-015",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/nudgra-oss/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/nudgra-oss/generate-env.sh --shared-env \"$tmp_dir/platforms/nudgra-oss.shared.env\" --output \"$tmp_dir/nudgra-oss.env\" && docker compose --env-file \"$tmp_dir/nudgra-oss.env\" -f platforms/nudgra-oss/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-016",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/n8n/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/n8n/generate-env.sh --shared-env \"$tmp_dir/platforms/n8n.shared.env\" --output \"$tmp_dir/n8n.env\" && docker compose --env-file \"$tmp_dir/n8n.env\" -f platforms/n8n/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-017",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck platforms/twenty/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/twenty/generate-env.sh --shared-env \"$tmp_dir/platforms/twenty.shared.env\" --output \"$tmp_dir/twenty.env\" && docker compose --env-file \"$tmp_dir/twenty.env\" -f platforms/twenty/compose.yaml config >/dev/null"
+    }
+  ],
+  "testCoverageMap": [
+    {
+      "task": "TASK-002",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/kensi-ai/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/kensi-ai/generate-env.sh --shared-env \"$tmp_dir/platforms/kensi-ai.shared.env\" --output \"$tmp_dir/kensi-ai.env\" && docker compose --env-file \"$tmp_dir/kensi-ai.env\" -f platforms/kensi-ai/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-003",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/agentshq/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/agentshq/generate-env.sh --shared-env \"$tmp_dir/platforms/agentshq.shared.env\" --output \"$tmp_dir/agentshq.env\" && docker compose --env-file \"$tmp_dir/agentshq.env\" -f platforms/agentshq/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-004",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/open-kudos/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-kudos/generate-env.sh --shared-env \"$tmp_dir/platforms/open-kudos.shared.env\" --output \"$tmp_dir/open-kudos.env\" && docker compose --env-file \"$tmp_dir/open-kudos.env\" -f platforms/open-kudos/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-005",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/insight/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/insight/generate-env.sh --shared-env \"$tmp_dir/platforms/insight.shared.env\" --output \"$tmp_dir/insight.env\" && docker compose --env-file \"$tmp_dir/insight.env\" -f platforms/insight/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-006",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/togglebox/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/togglebox/generate-env.sh --shared-env \"$tmp_dir/platforms/togglebox.shared.env\" --output \"$tmp_dir/togglebox.env\" && docker compose --env-file \"$tmp_dir/togglebox.env\" -f platforms/togglebox/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-007",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/openpay/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/openpay/generate-env.sh --shared-env \"$tmp_dir/platforms/openpay.shared.env\" --output \"$tmp_dir/openpay.env\" && docker compose --env-file \"$tmp_dir/openpay.env\" -f platforms/openpay/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-008",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/ploon/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/ploon/generate-env.sh --shared-env \"$tmp_dir/platforms/ploon.shared.env\" --output \"$tmp_dir/ploon.env\" && docker compose --env-file \"$tmp_dir/ploon.env\" -f platforms/ploon/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-009",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/open-growth-group/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/open-growth-group/generate-env.sh --shared-env \"$tmp_dir/platforms/open-growth-group.shared.env\" --output \"$tmp_dir/open-growth-group.env\" && docker compose --env-file \"$tmp_dir/open-growth-group.env\" -f platforms/open-growth-group/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-010",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/lokei/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/lokei/generate-env.sh --shared-env \"$tmp_dir/platforms/lokei.shared.env\" --output \"$tmp_dir/lokei.env\" && docker compose --env-file \"$tmp_dir/lokei.env\" -f platforms/lokei/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-011",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/albert/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/albert/generate-env.sh --shared-env \"$tmp_dir/platforms/albert.shared.env\" --output \"$tmp_dir/albert.env\" && docker compose --env-file \"$tmp_dir/albert.env\" -f platforms/albert/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-012",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/record-cloud/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/record-cloud/generate-env.sh --shared-env \"$tmp_dir/platforms/record-cloud.shared.env\" --output \"$tmp_dir/record-cloud.env\" && docker compose --env-file \"$tmp_dir/record-cloud.env\" -f platforms/record-cloud/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-013",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/plane/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/plane/generate-env.sh --shared-env \"$tmp_dir/platforms/plane.shared.env\" --output \"$tmp_dir/plane.env\" && docker compose --env-file \"$tmp_dir/plane.env\" -f platforms/plane/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-014",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/postiz/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/postiz/generate-env.sh --shared-env \"$tmp_dir/platforms/postiz.shared.env\" --output \"$tmp_dir/postiz.env\" && docker compose --env-file \"$tmp_dir/postiz.env\" -f platforms/postiz/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-015",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/nudgra-oss/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/nudgra-oss/generate-env.sh --shared-env \"$tmp_dir/platforms/nudgra-oss.shared.env\" --output \"$tmp_dir/nudgra-oss.env\" && docker compose --env-file \"$tmp_dir/nudgra-oss.env\" -f platforms/nudgra-oss/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-016",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/n8n/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/n8n/generate-env.sh --shared-env \"$tmp_dir/platforms/n8n.shared.env\" --output \"$tmp_dir/n8n.env\" && docker compose --env-file \"$tmp_dir/n8n.env\" -f platforms/n8n/compose.yaml config >/dev/null"
+    },
+    {
+      "task": "TASK-017",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck platforms/twenty/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && platforms/twenty/generate-env.sh --shared-env \"$tmp_dir/platforms/twenty.shared.env\" --output \"$tmp_dir/twenty.env\" && docker compose --env-file \"$tmp_dir/twenty.env\" -f platforms/twenty/compose.yaml config >/dev/null"
+    }
+  ],
+  "executionSummary": {
+    "taskCount": 16,
+    "layerCount": 1,
+    "layers": [
+      [
+        "TASK-002",
+        "TASK-003",
+        "TASK-004",
+        "TASK-005",
+        "TASK-006",
+        "TASK-007",
+        "TASK-008",
+        "TASK-009",
+        "TASK-010",
+        "TASK-011",
+        "TASK-012",
+        "TASK-013",
+        "TASK-014",
+        "TASK-015",
+        "TASK-016",
+        "TASK-017"
+      ]
+    ],
+    "criticalPath": [
+      "TASK-002"
+    ],
+    "externalPrerequisites": {
+      "TASK-002": [
+        "TASK-001"
+      ],
+      "TASK-003": [
+        "TASK-001"
+      ],
+      "TASK-004": [
+        "TASK-001"
+      ],
+      "TASK-005": [
+        "TASK-001"
+      ],
+      "TASK-006": [
+        "TASK-001"
+      ],
+      "TASK-007": [
+        "TASK-001"
+      ],
+      "TASK-008": [
+        "TASK-001"
+      ],
+      "TASK-009": [
+        "TASK-001"
+      ],
+      "TASK-010": [
+        "TASK-001"
+      ],
+      "TASK-011": [
+        "TASK-001"
+      ],
+      "TASK-012": [
+        "TASK-001"
+      ],
+      "TASK-013": [
+        "TASK-001"
+      ],
+      "TASK-014": [
+        "TASK-001"
+      ],
+      "TASK-015": [
+        "TASK-001"
+      ],
+      "TASK-016": [
+        "TASK-001"
+      ],
+      "TASK-017": [
+        "TASK-001"
+      ]
+    },
+    "milestoneOneTask": null,
+    "finalTask": null
+  }
+}

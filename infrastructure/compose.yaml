@@ -1,0 +1,529 @@
+name: ogg-infrastructure
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks:
+    - shared
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  mysql:
+    <<: *service-defaults
+    image: mysql:8.4.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-storage-engine=InnoDB
+      - --innodb-default-row-format=DYNAMIC
+      - --event-scheduler=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+
+  mysql-bootstrap:
+    image: mysql:8.4.6
+    restart: "no"
+    networks:
+      - shared
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      KENSI_AI_DB_PASSWORD: ${KENSI_AI_DB_PASSWORD:?required}
+      AGENTSHQ_DB_PASSWORD: ${AGENTSHQ_DB_PASSWORD:?required}
+      OPEN_KUDOS_DB_PASSWORD: ${OPEN_KUDOS_DB_PASSWORD:?required}
+      INSIGHT_DB_PASSWORD: ${INSIGHT_DB_PASSWORD:?required}
+      TOGGLEBOX_DB_PASSWORD: ${TOGGLEBOX_DB_PASSWORD:?required}
+      OPENPAY_DB_PASSWORD: ${OPENPAY_DB_PASSWORD:?required}
+      LOKEI_DB_PASSWORD: ${LOKEI_DB_PASSWORD:?required}
+      ALBERT_DB_PASSWORD: ${ALBERT_DB_PASSWORD:?required}
+      RECORD_CLOUD_DB_PASSWORD: ${RECORD_CLOUD_DB_PASSWORD:?required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        create_tenant() {
+          db="$$1"; user="$$2"; password="$$3"
+          mysql -hmysql -uroot -p"$$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS \`$$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; CREATE USER IF NOT EXISTS '$$user'@'%' IDENTIFIED BY '$$password'; ALTER USER '$$user'@'%' IDENTIFIED BY '$$password'; GRANT ALL PRIVILEGES ON \`$$db\`.* TO '$$user'@'%';"
+        }
+        create_tenant kensi_ai kensi_ai "$$KENSI_AI_DB_PASSWORD"
+        create_tenant agentshq agentshq "$$AGENTSHQ_DB_PASSWORD"
+        create_tenant open_kudos open_kudos "$$OPEN_KUDOS_DB_PASSWORD"
+        create_tenant insight insight "$$INSIGHT_DB_PASSWORD"
+        create_tenant togglebox togglebox "$$TOGGLEBOX_DB_PASSWORD"
+        create_tenant openpay openpay "$$OPENPAY_DB_PASSWORD"
+        create_tenant lokei lokei "$$LOKEI_DB_PASSWORD"
+        create_tenant albert albert "$$ALBERT_DB_PASSWORD"
+        create_tenant record_cloud record_cloud "$$RECORD_CLOUD_DB_PASSWORD"
+
+  postgresql:
+    <<: *service-defaults
+    image: postgres:16.9-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ROOT_PASSWORD:?POSTGRES_ROOT_PASSWORD is required}
+      POSTGRES_DB: postgres
+    command: ["postgres", "-c", "max_connections=500"]
+    volumes:
+      - postgresql-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3G
+
+  postgresql-bootstrap:
+    image: postgres:16.9-alpine
+    restart: "no"
+    networks:
+      - shared
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      PGHOST: postgresql
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_ROOT_PASSWORD:?POSTGRES_ROOT_PASSWORD is required}
+      PLANE_DB_PASSWORD: ${PLANE_DB_PASSWORD:?required}
+      POSTIZ_DB_PASSWORD: ${POSTIZ_DB_PASSWORD:?required}
+      NUDGRA_DB_PASSWORD: ${NUDGRA_DB_PASSWORD:?required}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?required}
+      TWENTY_DB_PASSWORD: ${TWENTY_DB_PASSWORD:?required}
+      TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        create_tenant() {
+          db="$$1"; user="$$2"; password="$$3"
+          if ! psql -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='$$user'" | grep -q 1; then
+            psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE \"$$user\" LOGIN PASSWORD '$$password' NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT CONNECTION LIMIT 50"
+          else
+            psql -d postgres -v ON_ERROR_STOP=1 -c "ALTER ROLE \"$$user\" PASSWORD '$$password'"
+          fi
+          if ! psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1; then
+            createdb -O "$$user" "$$db"
+          fi
+        }
+        create_tenant plane plane "$$PLANE_DB_PASSWORD"
+        create_tenant postiz postiz "$$POSTIZ_DB_PASSWORD"
+        create_tenant nudgra nudgra "$$NUDGRA_DB_PASSWORD"
+        create_tenant n8n n8n "$$N8N_DB_PASSWORD"
+        create_tenant twenty twenty "$$TWENTY_DB_PASSWORD"
+        create_tenant temporal temporal "$$TEMPORAL_DB_PASSWORD"
+        create_tenant temporal_visibility temporal "$$TEMPORAL_DB_PASSWORD"
+        psql -d nudgra -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto'
+
+  valkey-init:
+    image: valkey/valkey:8.1.3-alpine
+    restart: "no"
+    environment:
+      VALKEY_ADMIN_PASSWORD: ${VALKEY_ADMIN_PASSWORD:?required}
+      PLANE_VALKEY_PASSWORD: ${PLANE_VALKEY_PASSWORD:?required}
+    volumes:
+      - valkey-data:/data
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        umask 077
+        {
+          echo "user default off"
+          echo "user admin on >$$VALKEY_ADMIN_PASSWORD ~* &* +@all"
+          echo "user plane on >$$PLANE_VALKEY_PASSWORD ~* &* +@all"
+        } > /data/users.acl
+        chown 999:999 /data/users.acl
+        chmod 600 /data/users.acl
+
+  valkey:
+    <<: *service-defaults
+    image: valkey/valkey:8.1.3-alpine
+    depends_on:
+      valkey-init:
+        condition: service_completed_successfully
+    command: ["valkey-server", "--aclfile", "/data/users.acl", "--appendonly", "no", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli --user admin --pass $${VALKEY_ADMIN_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      VALKEY_ADMIN_PASSWORD: ${VALKEY_ADMIN_PASSWORD:?required}
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  redis-cache-init:
+    image: redis:7.2.7-alpine
+    restart: "no"
+    environment:
+      REDIS_CACHE_ADMIN_PASSWORD: ${REDIS_CACHE_ADMIN_PASSWORD:?required}
+      LOKEI_CACHE_PASSWORD: ${LOKEI_CACHE_PASSWORD:?required}
+      ALBERT_CACHE_PASSWORD: ${ALBERT_CACHE_PASSWORD:?required}
+      KENSI_AI_CACHE_PASSWORD: ${KENSI_AI_CACHE_PASSWORD:?required}
+      OPEN_KUDOS_CACHE_PASSWORD: ${OPEN_KUDOS_CACHE_PASSWORD:?required}
+      POSTIZ_CACHE_PASSWORD: ${POSTIZ_CACHE_PASSWORD:?required}
+      TWENTY_CACHE_PASSWORD: ${TWENTY_CACHE_PASSWORD:?required}
+      OPENPAY_CACHE_PASSWORD: ${OPENPAY_CACHE_PASSWORD:?required}
+    volumes:
+      - redis-cache-data:/data
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        umask 077
+        {
+          echo "user default off"
+          echo "user admin on >$$REDIS_CACHE_ADMIN_PASSWORD ~* &* +@all"
+          echo "user lokei on >$$LOKEI_CACHE_PASSWORD ~lokei:* &lokei:* +@all"
+          echo "user albert on >$$ALBERT_CACHE_PASSWORD ~albert:* &albert:* +@all"
+          echo "user kensi-ai on >$$KENSI_AI_CACHE_PASSWORD ~kensi-ai:* &kensi-ai:* +@all"
+          echo "user open-kudos on >$$OPEN_KUDOS_CACHE_PASSWORD ~open-kudos:* &open-kudos:* +@all"
+          echo "user postiz on >$$POSTIZ_CACHE_PASSWORD ~* &* +@all"
+          echo "user twenty on >$$TWENTY_CACHE_PASSWORD ~* &* +@all"
+          echo "user openpay on >$$OPENPAY_CACHE_PASSWORD ~openpay:* &openpay:* +@all"
+        } > /data/users.acl
+        chown 999:999 /data/users.acl
+        chmod 600 /data/users.acl
+
+  redis-cache:
+    <<: *service-defaults
+    image: redis:7.2.7-alpine
+    depends_on:
+      redis-cache-init:
+        condition: service_completed_successfully
+    command: ["redis-server", "--aclfile", "/data/users.acl", "--appendonly", "no", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis-cache-data:/data
+    environment:
+      REDIS_CACHE_ADMIN_PASSWORD: ${REDIS_CACHE_ADMIN_PASSWORD:?required}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user admin --pass $${REDIS_CACHE_ADMIN_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  redis-queue-init:
+    image: redis:7.2.7-alpine
+    restart: "no"
+    environment:
+      REDIS_QUEUE_ADMIN_PASSWORD: ${REDIS_QUEUE_ADMIN_PASSWORD:?required}
+      LOKEI_QUEUE_PASSWORD: ${LOKEI_QUEUE_PASSWORD:?required}
+      ALBERT_QUEUE_PASSWORD: ${ALBERT_QUEUE_PASSWORD:?required}
+      KENSI_AI_QUEUE_PASSWORD: ${KENSI_AI_QUEUE_PASSWORD:?required}
+      OPEN_KUDOS_QUEUE_PASSWORD: ${OPEN_KUDOS_QUEUE_PASSWORD:?required}
+      N8N_QUEUE_PASSWORD: ${N8N_QUEUE_PASSWORD:?required}
+      POSTIZ_QUEUE_PASSWORD: ${POSTIZ_QUEUE_PASSWORD:?required}
+      OPENPAY_QUEUE_PASSWORD: ${OPENPAY_QUEUE_PASSWORD:?required}
+    volumes:
+      - redis-queue-data:/data
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        umask 077
+        {
+          echo "user default off"
+          echo "user admin on >$$REDIS_QUEUE_ADMIN_PASSWORD ~* &* +@all"
+          echo "user lokei on >$$LOKEI_QUEUE_PASSWORD ~lokei:* &lokei:* +@all"
+          echo "user albert on >$$ALBERT_QUEUE_PASSWORD ~albert:* &albert:* +@all"
+          echo "user kensi-ai on >$$KENSI_AI_QUEUE_PASSWORD ~kensi-ai:* &kensi-ai:* +@all"
+          echo "user open-kudos on >$$OPEN_KUDOS_QUEUE_PASSWORD ~open-kudos:* &open-kudos:* +@all"
+          echo "user n8n on >$$N8N_QUEUE_PASSWORD ~n8n:* &n8n:* +@all"
+          echo "user postiz on >$$POSTIZ_QUEUE_PASSWORD ~* &* +@all"
+          echo "user openpay on >$$OPENPAY_QUEUE_PASSWORD ~openpay:* &openpay:* +@all"
+        } > /data/users.acl
+        chown 999:999 /data/users.acl
+        chmod 600 /data/users.acl
+
+  redis-queue:
+    <<: *service-defaults
+    image: redis:7.2.7-alpine
+    depends_on:
+      redis-queue-init:
+        condition: service_completed_successfully
+    command: ["redis-server", "--aclfile", "/data/users.acl", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --user admin --pass $${REDIS_QUEUE_ADMIN_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_QUEUE_ADMIN_PASSWORD: ${REDIS_QUEUE_ADMIN_PASSWORD:?required}
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  minio:
+    <<: *service-defaults
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  minio-bootstrap:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    restart: "no"
+    networks:
+      - shared
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?required}
+      RECORD_CLOUD_S3_ACCESS_KEY: ${RECORD_CLOUD_S3_ACCESS_KEY:?required}
+      RECORD_CLOUD_S3_SECRET_KEY: ${RECORD_CLOUD_S3_SECRET_KEY:?required}
+      PLANE_S3_ACCESS_KEY: ${PLANE_S3_ACCESS_KEY:?required}
+      PLANE_S3_SECRET_KEY: ${PLANE_S3_SECRET_KEY:?required}
+      KENSI_AI_S3_ACCESS_KEY: ${KENSI_AI_S3_ACCESS_KEY:?required}
+      KENSI_AI_S3_SECRET_KEY: ${KENSI_AI_S3_SECRET_KEY:?required}
+      OPENPAY_S3_ACCESS_KEY: ${OPENPAY_S3_ACCESS_KEY:?required}
+      OPENPAY_S3_SECRET_KEY: ${OPENPAY_S3_SECRET_KEY:?required}
+      TWENTY_S3_ACCESS_KEY: ${TWENTY_S3_ACCESS_KEY:?required}
+      TWENTY_S3_SECRET_KEY: ${TWENTY_S3_SECRET_KEY:?required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set shared http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        provision() {
+          bucket="$$1"; user="$$2"; secret="$$3"; policy="bucket-$$1"
+          mc mb --ignore-existing "shared/$$bucket"
+          mc admin user add shared "$$user" "$$secret" >/dev/null 2>&1 || true
+          printf '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::%s/*"]}]}' "$$bucket" "$$bucket" > "/tmp/$$policy.json"
+          mc admin policy create shared "$$policy" "/tmp/$$policy.json" >/dev/null 2>&1 || mc admin policy update shared "$$policy" "/tmp/$$policy.json"
+          mc admin policy attach shared "$$policy" --user "$$user" >/dev/null
+        }
+        provision record-cloud "$$RECORD_CLOUD_S3_ACCESS_KEY" "$$RECORD_CLOUD_S3_SECRET_KEY"
+        provision plane "$$PLANE_S3_ACCESS_KEY" "$$PLANE_S3_SECRET_KEY"
+        provision kensi-ai "$$KENSI_AI_S3_ACCESS_KEY" "$$KENSI_AI_S3_SECRET_KEY"
+        provision openpay "$$OPENPAY_S3_ACCESS_KEY" "$$OPENPAY_S3_SECRET_KEY"
+        provision twenty "$$TWENTY_S3_ACCESS_KEY" "$$TWENTY_S3_SECRET_KEY"
+
+  qdrant:
+    <<: *service-defaults
+    image: qdrant/qdrant:v1.12.1
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?required}
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  rabbitmq:
+    <<: *service-defaults
+    image: rabbitmq:3.13.6-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: plane
+      RABBITMQ_DEFAULT_PASS: ${PLANE_RABBITMQ_PASSWORD:?required}
+      RABBITMQ_DEFAULT_VHOST: plane
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  elasticsearch:
+    <<: *service-defaults
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.27
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+      cluster.routing.allocation.disk.threshold_enabled: "true"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  temporal:
+    <<: *service-defaults
+    image: temporalio/auto-setup:1.28.1
+    depends_on:
+      postgresql-bootstrap:
+        condition: service_completed_successfully
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: ${TEMPORAL_DB_PASSWORD:?required}
+      POSTGRES_SEEDS: postgresql
+      ENABLE_ES: "true"
+      ES_SEEDS: elasticsearch
+      ES_VERSION: v7
+      TEMPORAL_NAMESPACE: postiz
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  temporal-ui:
+    <<: *service-defaults
+    image: temporalio/ui:2.34.0
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: ${TEMPORAL_CORS_ORIGINS:-https://post.con.fyi}
+    depends_on:
+      temporal:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    <<: *service-defaults
+    image: axllent/mailpit:v1.30.0
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "5000"
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  uptime-kuma:
+    <<: *service-defaults
+    image: louislam/uptime-kuma:2.3.2
+    volumes:
+      - uptime-kuma-data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "extra/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  volume-backup:
+    profiles: ["backup"]
+    image: offen/docker-volume-backup:v2.48.2
+    restart: unless-stopped
+    environment:
+      BACKUP_CRON_EXPRESSION: ${BACKUP_CRON_EXPRESSION:-0 2 * * *}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_FILENAME: ogg-volumes-%Y-%m-%dT%H-%M-%S.tar.gz
+      AWS_S3_BUCKET_NAME: ${BACKUP_S3_BUCKET:?BACKUP_S3_BUCKET is required for the backup profile}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:?BACKUP_S3_ACCESS_KEY is required for the backup profile}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:?BACKUP_S3_SECRET_KEY is required for the backup profile}
+      AWS_ENDPOINT: ${BACKUP_S3_ENDPOINT:?BACKUP_S3_ENDPOINT is required for the backup profile}
+      AWS_ENDPOINT_PROTO: ${BACKUP_S3_ENDPOINT_PROTO:-https}
+      AWS_S3_PATH: infrastructure
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - mysql-data:/backup/mysql:ro
+      - postgresql-data:/backup/postgresql:ro
+      - redis-queue-data:/backup/redis-queue:ro
+      - minio-data:/backup/minio:ro
+      - qdrant-data:/backup/qdrant:ro
+      - rabbitmq-data:/backup/rabbitmq:ro
+      - elasticsearch-data:/backup/elasticsearch:ro
+      - mailpit-data:/backup/mailpit:ro
+      - backup-archive:/archive
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+networks:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true
+
+volumes:
+  mysql-data:
+  postgresql-data:
+  valkey-data:
+  redis-cache-data:
+  redis-queue-data:
+  minio-data:
+  qdrant-data:
+  rabbitmq-data:
+  elasticsearch-data:
+  mailpit-data:
+  uptime-kuma-data:
+  backup-archive:
