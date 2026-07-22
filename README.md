@@ -1,6 +1,6 @@
 # OGG Coolify Stack Recipes
 
-This repository contains the complete production Compose shape for the OGG portfolio. It creates deployment artifacts only. It does not call Coolify, change DNS, connect to the production server, or deploy containers.
+This repository contains the complete production Compose shape for the OGG portfolio plus the repeatable Coolify resource-creation workflow. It never deploys containers or changes DNS.
 
 ## Layout
 
@@ -9,6 +9,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - `platforms/<slug>/compose.yaml` contains one logical application stack.
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
+- `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
 
 There are exactly 17 Compose files and 17 env generators: one pair for infrastructure and one pair for each of the 16 platforms in `REPOSITORIES.md`.
 
@@ -48,6 +49,25 @@ scripts/validate-all.sh
 ```
 
 The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 17 Compose models, and rejects duplicated shared-service containers inside platform stacks. It never runs `docker compose up`.
+
+## Create the Coolify resources
+
+Validate the complete environment-generation workflow without contacting Coolify:
+
+```bash
+scripts/create-resources.sh --check
+```
+
+For a clean rebuild, enable the Coolify API in the UI with Allowed IPs set to exactly `127.0.0.1,::1`, then run:
+
+```bash
+scripts/create-resources.sh \
+  --apply \
+  --reset \
+  --ssh-key /absolute/path/to/the/server/ssh/key
+```
+
+The command generates all secrets in a mode-`0600` temporary directory, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, recreates all 17 Git Compose resources, uploads their environments, applies service domains, verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. It deliberately creates the application before patching Compose service domains because Coolify 4.1.2 fails when `docker_compose_domains` is supplied to the creation endpoint.
 
 ## Build sources
 

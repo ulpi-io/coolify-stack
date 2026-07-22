@@ -487,10 +487,10 @@ services:
       BACKUP_CRON_EXPRESSION: ${BACKUP_CRON_EXPRESSION:-0 2 * * *}
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
       BACKUP_FILENAME: ogg-volumes-%Y-%m-%dT%H-%M-%S.tar.gz
-      AWS_S3_BUCKET_NAME: ${BACKUP_S3_BUCKET:?BACKUP_S3_BUCKET is required for the backup profile}
-      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:?BACKUP_S3_ACCESS_KEY is required for the backup profile}
-      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:?BACKUP_S3_SECRET_KEY is required for the backup profile}
-      AWS_ENDPOINT: ${BACKUP_S3_ENDPOINT:?BACKUP_S3_ENDPOINT is required for the backup profile}
+      AWS_S3_BUCKET_NAME: ${BACKUP_S3_BUCKET:-}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY:-}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_KEY:-}
+      AWS_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
       AWS_ENDPOINT_PROTO: ${BACKUP_S3_ENDPOINT_PROTO:-https}
       AWS_S3_PATH: infrastructure
     volumes:
