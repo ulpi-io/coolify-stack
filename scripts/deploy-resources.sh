@@ -82,7 +82,17 @@ if [[ -n "$only_slug" ]]; then
   [[ $known_slug -eq 1 ]] || die "unknown resource slug for --only: $only_slug"
 fi
 
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes -i "$ssh_key")
+ssh_control_dir=$(mktemp -d /tmp/ogg-coolify-stack-ssh.XXXXXX)
+ssh_control_path="$ssh_control_dir/control"
+ssh_options=(
+  -o BatchMode=yes
+  -o ConnectTimeout=10
+  -o IdentitiesOnly=yes
+  -o ControlMaster=auto
+  -o ControlPersist=60
+  -o ControlPath="$ssh_control_path"
+  -i "$ssh_key"
+)
 
 cleanup() {
   local exit_code=$?
@@ -110,6 +120,8 @@ cleanup() {
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify rm -f $token_file" >/dev/null 2>&1 || true
   fi
+  ssh "${ssh_options[@]}" -O exit "$coolify_user@$coolify_host" >/dev/null 2>&1 || true
+  rmdir "$ssh_control_dir" >/dev/null 2>&1 || true
   exit "$exit_code"
 }
 trap cleanup EXIT INT TERM
