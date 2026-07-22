@@ -53,13 +53,21 @@ x-albert-app: &albert-app
     REVERB_PORT: "8080"
   networks: [internal, shared]
 services:
+  migrate:
+    <<: [*service-defaults, *albert-app]
+    restart: "no"
+    command: ["sh", "-c", "php artisan config:clear && php artisan migrate --force"]
   app:
     <<: [*service-defaults, *albert-app]
+    command: ["sh", "-c", "php artisan config:clear && exec php-fpm"]
     healthcheck:
       test: ["CMD-SHELL", "kill -0 1"]
       interval: 30s
       timeout: 5s
       retries: 5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   nginx:
     <<: *service-defaults
     build:
@@ -75,13 +83,22 @@ services:
         condition: service_healthy
   worker:
     <<: [*service-defaults, *albert-app]
-    command: ["php", "artisan", "horizon"]
+    command: ["sh", "-c", "php artisan config:clear && exec php artisan horizon"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   scheduler:
     <<: [*service-defaults, *albert-app]
-    command: ["sh", "-c", "while true; do php artisan schedule:run --no-interaction; sleep 60; done"]
+    command: ["sh", "-c", "php artisan config:clear && while true; do php artisan schedule:run --no-interaction; sleep 60; done"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   reverb:
     <<: [*service-defaults, *albert-app]
-    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    command: ["sh", "-c", "php artisan config:clear && exec php artisan reverb:start --host=0.0.0.0 --port=8080"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   web:
     <<: *service-defaults
     build:
