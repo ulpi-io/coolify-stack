@@ -249,16 +249,24 @@ for stack in "${stacks[@]}"; do
   application_uuid=$(jq -er .uuid <<<"$application_response") || die "Coolify returned no application UUID for $resource_name"
   printf '%s\t%s\t%s\t%s\n' "$slug" "$project_uuid" "$application_uuid" "$domains_json" >> "$manifest"
 
-  # Wait until Coolify finishes parsing Compose and extracting every referenced
-  # variable. Uploading earlier races the parser and leaves duplicate placeholders.
-  compose_file=${compose_location#/}
-  expected_keys_json=$(grep -Eo '\$\{[A-Za-z_][A-Za-z0-9_]*' "$compose_file" | sed 's/^${//' | sort -u | jq -Rsc 'split("\n") | map(select(length > 0))')
+  # Coolify saves docker_compose_raw before it finishes extracting environment
+  # rows. Wait until the extracted key set is stable before replacing values.
   parsed=0
+  stable_count=0
+  previous_env_signature=""
   for _ in {1..60}; do
     application_json=$(api GET "applications/$application_uuid" </dev/null) || die "could not inspect $slug"
     envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not inspect $slug environment"
-    missing_count=$(jq --argjson expected "$expected_keys_json" '[.[]?.key] as $actual | [$expected[] | . as $key | select(($actual | index($key)) == null)] | length' <<<"$envs_json")
-    if [[ $(jq -r '(.docker_compose_raw // "") | length > 0' <<<"$application_json") == true && "$missing_count" == 0 ]]; then
+    env_signature=$(jq -r '[.[].key] | sort | join(",")' <<<"$envs_json")
+    if [[ $(jq -r '(.docker_compose_raw // "") | length > 0' <<<"$application_json") == true && -n "$env_signature" ]]; then
+      if [[ "$env_signature" == "$previous_env_signature" ]]; then
+        stable_count=$((stable_count + 1))
+      else
+        stable_count=0
+      fi
+      previous_env_signature=$env_signature
+    fi
+    if [[ $stable_count -ge 2 ]]; then
       parsed=1
       break
     fi
