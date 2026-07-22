@@ -36,6 +36,11 @@ GIT_AUTH_TOKEN=
 BETTER_AUTH_SECRET=$(random_hex)
 STORAGE_SIGNING_SECRET=$(random_hex)
 SMTP_FROM=StudioCap <no-reply@record.con.fyi>
+# Paid plans are disabled until these generated non-live keys are replaced.
+STRIPE_SECRET_KEY=sk_test_$(random_hex)
+STRIPE_WEBHOOK_SECRET=whsec_$(random_hex)
+STRIPE_PUBLISHABLE_KEY=pk_test_$(random_hex)
+BILLING_PLANS=[]
 EOF
 } > "$tmp"
 chmod 600 "$tmp"
