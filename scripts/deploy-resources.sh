@@ -110,7 +110,7 @@ token_created=1
 
 api() {
   local method=$1 endpoint=$2
-  [[ "$endpoint" =~ ^[A-Za-z0-9_./?=-]+$ ]] || die "unsafe API endpoint: $endpoint"
+  [[ "$endpoint" =~ ^[A-Za-z0-9_./?=\&-]+$ ]] || die "unsafe API endpoint: $endpoint"
   # shellcheck disable=SC2029
   ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
     "docker exec coolify sh -lc 'api_token=\$(cat $token_file); curl --fail-with-body -sS -X $method -H \"Authorization: Bearer \$api_token\" \"http://127.0.0.1:8080/api/v1/$endpoint\"'"
