@@ -146,4 +146,16 @@ For an authorized application change:
 6. Inspect fresh browser network/console behavior when the issue is frontend-facing.
 7. Report exactly what changed, what was verified, and any remaining risk.
 
+To deploy the complete already-configured stack in dependency order through the
+Coolify API, use:
+
+```bash
+scripts/deploy-resources.sh --apply \
+  --ssh-key ~/.ssh/id_ed25519_digitalocean
+```
+
+The script deploys shared infrastructure first and then each platform. It opens
+Coolify's localhost-only API only for the duration of the run and revokes its
+temporary token on exit. It does not create, delete, or reconfigure resources.
+
 If an operation would delete data, rotate secrets, alter network access, or affect multiple applications, stop and obtain explicit authorization first.
