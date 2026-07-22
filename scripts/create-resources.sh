@@ -248,10 +248,7 @@ for stack in "${stacks[@]}"; do
   application_response=$(printf '%s' "$application_payload" | api POST applications/public) || die "could not create application $resource_name"
   application_uuid=$(jq -er .uuid <<<"$application_response") || die "Coolify returned no application UUID for $resource_name"
   printf '%s\t%s\t%s\t%s\n' "$slug" "$project_uuid" "$application_uuid" "$domains_json" >> "$manifest"
-  echo "Created $project_name"
-done
 
-while IFS=$'\t' read -r slug _ application_uuid domains_json; do
   env_file=$work_dir/infrastructure.env
   [[ "$slug" == infrastructure ]] || env_file=$work_dir/$slug.env
   env_payload=$(jq -Rn \
@@ -279,8 +276,8 @@ while IFS=$'\t' read -r slug _ application_uuid domains_json; do
       die "could not set domains for $slug"
     fi
   fi
-  echo "Configured $slug environment and domains"
-done < "$manifest"
+  echo "Created and configured $project_name"
+done
 
 bad_status=0
 while IFS=$'\t' read -r slug _ application_uuid _; do
