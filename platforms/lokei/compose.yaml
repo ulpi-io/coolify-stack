@@ -69,18 +69,34 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  migrate:
+    <<: *service-defaults
+    build: *lokei-api-build
+    command: ["php", "artisan", "migrate", "--force"]
+    restart: "no"
+    environment: *laravel-env
+    networks: [internal, shared]
   worker:
     <<: *service-defaults
     build: *lokei-api-build
     command: ["php", "artisan", "horizon"]
     environment: *laravel-env
     networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   scheduler:
     <<: *service-defaults
     build: *lokei-api-build
     command: ["php", "artisan", "schedule:work"]
     environment: *laravel-env
     networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
   relay:
     <<: *service-defaults
     build:
