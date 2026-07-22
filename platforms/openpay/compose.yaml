@@ -49,10 +49,12 @@ x-openpay-build: &openpay-build
     RUN pecl install redis mongodb && docker-php-ext-enable redis mongodb
     COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
     COPY . .
-    # The upstream filename sorts before the migration that creates salary_submissions.
-    # Rename it in the deployment image so greenfield migrations run in dependency order.
+    # Two upstream filenames sort before the migrations that provide their tables/columns.
+    # Rename them in the deployment image so greenfield migrations run in dependency order.
     RUN mv database/migrations/2025_01_15_000001_add_enhanced_compensation_fields.php \
-        database/migrations/2025_06_17_092807_add_enhanced_compensation_fields.php
+        database/migrations/2025_06_17_092807_add_enhanced_compensation_fields.php && \
+        mv database/migrations/2025_06_28_000000_add_status_to_salary_submissions_table.php \
+        database/migrations/2025_06_27_100534_add_status_to_salary_submissions_table.php
     RUN cp -n .env.example .env 2>/dev/null || true; \
         composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist; \
         rm -f .env
