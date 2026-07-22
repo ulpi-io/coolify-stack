@@ -10,7 +10,9 @@ x-service-defaults: &service-defaults
 services:
   app:
     <<: *service-defaults
-    image: ${NUDGRA_IMAGE:?required}
+    build:
+      context: https://github.com/MaikoCode/nudgra-oss.git#main
+      dockerfile: Dockerfile
     expose: ["3000"]
     environment:
       NODE_ENV: production

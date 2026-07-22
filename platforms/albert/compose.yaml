@@ -35,7 +35,12 @@ x-laravel-env: &laravel-env
   LOG_CHANNEL: stderr
 
 x-albert-app: &albert-app
-  image: ${ALBERT_APP_IMAGE:?required}
+  build:
+    context: https://github.com/ulpi-io/albert.git#main:api
+    dockerfile: docker/app/Dockerfile.prod
+    secrets:
+      - source: git_auth_token
+        target: GIT_AUTH_TOKEN
   environment:
     <<: *laravel-env
     QDRANT_URL: ${QDRANT_URL:?required}
@@ -56,7 +61,12 @@ services:
       retries: 5
   nginx:
     <<: *service-defaults
-    image: ${ALBERT_NGINX_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/albert.git#main:api/docker/nginx
+      dockerfile: Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     networks: [internal]
     depends_on:
       app:
@@ -72,7 +82,12 @@ services:
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
   web:
     <<: *service-defaults
-    image: ${ALBERT_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/albert.git#main:web
+      dockerfile: docker/Dockerfile.prod
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["3000"]
     environment:
       NODE_ENV: production
@@ -83,7 +98,22 @@ services:
     networks: [internal]
   agents:
     <<: *service-defaults
-    image: ${ALBERT_AGENTS_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/albert.git#main:agents
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM node:22-alpine
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY package.json pnpm-lock.yaml ./
+        RUN pnpm install --no-frozen-lockfile
+        COPY . .
+        RUN pnpm build
+        ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3001
+        EXPOSE 3001
+        CMD ["pnpm", "start"]
     environment:
       NODE_ENV: production
       API_BASE_URL: http://nginx
@@ -96,3 +126,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

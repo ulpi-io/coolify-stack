@@ -31,10 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.albert.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://albert.con.fyi
-ALBERT_APP_IMAGE=example.invalid/ogg/albert-api:replace-with-pinned-image
-ALBERT_NGINX_IMAGE=example.invalid/ogg/albert-nginx:replace-with-pinned-image
-ALBERT_WEB_IMAGE=example.invalid/ogg/albert-web:replace-with-pinned-image
-ALBERT_AGENTS_IMAGE=example.invalid/ogg/albert-agents:replace-with-pinned-image
+GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 REVERB_APP_ID=albert
 REVERB_APP_KEY=$(random_hex)

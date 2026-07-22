@@ -10,7 +10,12 @@ x-service-defaults: &service-defaults
 services:
   api:
     <<: *service-defaults
-    image: ${INSIGHT_API_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/insight.git#main
+      dockerfile: apps/api/Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     environment:
       NODE_ENV: production
       ULPI_DB_URL: mysql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
@@ -27,7 +32,12 @@ services:
       retries: 10
   dashboard:
     <<: *service-defaults
-    image: ${INSIGHT_DASHBOARD_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/insight.git#main
+      dockerfile: apps/dashboard/Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["8080"]
     environment:
       ULPI_API_URL: http://api:8080
@@ -46,3 +56,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

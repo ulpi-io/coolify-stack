@@ -10,7 +10,52 @@ x-service-defaults: &service-defaults
 services:
   api:
     <<: *service-defaults
-    image: ${TOGGLEBOX_API_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/togglebox.git#main
+      dockerfile_inline: |
+        FROM node:20-alpine AS builder
+        WORKDIR /app
+        RUN apk add --no-cache libc6-compat python3 make g++
+        RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
+        COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
+        COPY packages/ ./packages/
+        COPY apps/api/ ./apps/api/
+        RUN pnpm install --frozen-lockfile
+        RUN DB_TYPE=mysql pnpm --dir packages/database prisma:generate
+        RUN sed -i 's/provider = "sqlite"/provider = "mysql"/' packages/auth/prisma/schema.prisma && pnpm --dir packages/auth prisma:generate
+        RUN pnpm build:packages
+        RUN pnpm --filter togglebox-api build
+
+        FROM node:20-alpine AS production
+        WORKDIR /app
+        RUN apk add --no-cache curl dumb-init
+        RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+        RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
+        COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
+        COPY packages/core/package.json ./packages/core/
+        COPY packages/database/package.json ./packages/database/
+        COPY packages/cache/package.json ./packages/cache/
+        COPY packages/auth/package.json ./packages/auth/
+        COPY packages/shared/package.json ./packages/shared/
+        COPY apps/api/package.json ./apps/api/
+        RUN pnpm install --prod --frozen-lockfile
+        COPY --from=builder /app/packages/core/dist ./packages/core/dist
+        COPY --from=builder /app/packages/database/dist ./packages/database/dist
+        COPY --from=builder /app/packages/cache/dist ./packages/cache/dist
+        COPY --from=builder /app/packages/auth/dist ./packages/auth/dist
+        COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+        COPY --from=builder /app/packages/node_modules/.prisma ./packages/node_modules/.prisma
+        COPY --from=builder /app/apps/api/dist ./apps/api/dist
+        RUN chown -R nodejs:nodejs /app
+        USER nodejs
+        EXPOSE 3000
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://localhost:3000/health || exit 1
+        WORKDIR /app/apps/api
+        CMD ["dumb-init", "node", "dist/index.js"]
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    expose: ["3000"]
     environment:
       NODE_ENV: production
       PORT: "3000"
@@ -20,7 +65,7 @@ services:
       ENABLE_AUTHENTICATION: "true"
       JWT_SECRET: ${JWT_SECRET:?required}
       API_KEY_SECRET: ${API_KEY_SECRET:?required}
-      APP_URL: ${APP_URL:?required}
+      APP_URL: ${API_PUBLIC_URL:?required}
       CORS_ORIGIN: ${APP_URL:?required}
       SMTP_HOST: ${SMTP_HOST:?required}
       SMTP_PORT: ${SMTP_PORT:?required}
@@ -34,12 +79,56 @@ services:
       retries: 5
   admin:
     <<: *service-defaults
-    image: ${TOGGLEBOX_ADMIN_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/togglebox.git#main
+      args:
+        NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+        NEXT_PUBLIC_APP_URL: ${APP_URL:?required}
+      dockerfile_inline: |
+        FROM node:20-alpine AS builder
+        WORKDIR /app
+        RUN apk add --no-cache libc6-compat python3 make g++
+        RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
+        COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
+        COPY packages/ ./packages/
+        COPY apps/admin/ ./apps/admin/
+        RUN pnpm install --frozen-lockfile
+        RUN DB_TYPE=mysql pnpm --dir packages/database prisma:generate
+        RUN sed -i 's/provider = "sqlite"/provider = "mysql"/' packages/auth/prisma/schema.prisma && pnpm --dir packages/auth prisma:generate
+        RUN pnpm build:packages
+        ARG NEXT_PUBLIC_API_URL
+        ARG NEXT_PUBLIC_APP_URL
+        ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_API_URL=$${NEXT_PUBLIC_API_URL} NEXT_PUBLIC_APP_URL=$${NEXT_PUBLIC_APP_URL}
+        RUN pnpm --filter "@togglebox/admin" build
+        RUN mkdir -p apps/admin/public
+
+        FROM node:20-alpine AS production
+        WORKDIR /app
+        RUN apk add --no-cache curl dumb-init libc6-compat
+        RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+        RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
+        COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+        COPY apps/admin/package.json ./apps/admin/
+        RUN pnpm install --prod --frozen-lockfile --filter "@togglebox/admin"
+        COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next ./apps/admin/.next
+        COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/public ./apps/admin/public
+        COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/package.json ./apps/admin/
+        COPY --chown=nextjs:nodejs apps/admin/next.config.* ./apps/admin/
+        USER nextjs
+        EXPOSE 3001
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD curl -f http://localhost:3001/api/health || exit 1
+        WORKDIR /app/apps/admin
+        ENV NODE_ENV=production PORT=3001 NEXT_TELEMETRY_DISABLED=1
+        CMD ["dumb-init", "pnpm", "start"]
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["3001"]
     environment:
       NODE_ENV: production
       API_URL: http://api:3000
-      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+      NEXT_PUBLIC_APP_URL: ${APP_URL:?required}
     networks: [internal]
     depends_on:
       api:
@@ -50,3 +139,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

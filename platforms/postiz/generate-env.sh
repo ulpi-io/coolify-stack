@@ -31,7 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.postiz.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://post.con.fyi
-POSTIZ_IMAGE=ghcr.io/gitroomhq/postiz-app:latest
+POSTIZ_IMAGE=ghcr.io/gitroomhq/postiz-app@sha256:1d5a5dc6b896747d1483c01dc2562165bd313ad601b32f6cabb7f7dd08a911a9
 JWT_SECRET=$(random_hex)
 EOF
 } > "$tmp"

@@ -31,10 +31,13 @@ tmp=$(mktemp "$(dirname "$output")/.lokei.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://lokei.dev
-LOKEI_API_IMAGE=example.invalid/ogg/lokei-api:replace-with-pinned-image
-LOKEI_WEB_IMAGE=example.invalid/ogg/lokei-web:replace-with-pinned-image
-LOKEI_RELAY_IMAGE=example.invalid/ogg/lokei-relay:replace-with-pinned-image
+API_PUBLIC_URL=https://api.lokei.dev
+RELAY_DOMAIN=relay.lokei.dev
+GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
+AUTH_SECRET=$(random_base64)
+INTERNAL_SERVICE_TOKEN=$(random_hex)
+RELAY_SERVICE_TOKEN=$(random_hex)
 MAIL_FROM_ADDRESS=no-reply@lokei.dev
 MAIL_FROM_NAME=Lokei
 EOF

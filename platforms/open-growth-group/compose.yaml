@@ -10,7 +10,21 @@ x-service-defaults: &service-defaults
 services:
   web:
     <<: *service-defaults
-    image: ${OGG_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/CiprianSpiridon/open-growth-group-website.git#main
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM node:22-alpine
+        WORKDIR /app
+        COPY package.json package-lock.json ./
+        RUN npm ci
+        COPY . .
+        RUN npm run build
+        ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
+        EXPOSE 3000
+        CMD ["npm", "run", "start"]
     expose: ["3000"]
     environment:
       NODE_ENV: production
@@ -27,3 +41,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

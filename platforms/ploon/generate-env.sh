@@ -31,7 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.ploon.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://ploon.ai
-PLOON_WEB_IMAGE=example.invalid/ogg/ploon-web:replace-with-pinned-image
+GIT_AUTH_TOKEN=
 EOF
 } > "$tmp"
 chmod 600 "$tmp"

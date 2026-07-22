@@ -10,13 +10,19 @@ x-service-defaults: &service-defaults
 services:
   api:
     <<: *service-defaults
-    image: ${RECORD_API_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/record-cloud.git#main
+      dockerfile: apps/api/Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    expose: ["4000"]
     environment:
       NODE_ENV: production
       PORT: "4000"
       DATABASE_URL: mysql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?required}
-      BASE_URL: ${APP_URL:?required}/api
+      BASE_URL: ${API_PUBLIC_URL:?required}
       WEB_BASE_URL: ${APP_URL:?required}
       STORAGE_DRIVER: s3
       STORAGE_SIGNING_SECRET: ${STORAGE_SIGNING_SECRET:?required}
@@ -38,12 +44,55 @@ services:
       retries: 5
   web:
     <<: *service-defaults
-    image: ${RECORD_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/record-cloud.git#main
+      args:
+        NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+        NEXT_PUBLIC_BASE_URL: ${APP_URL:?required}
+      dockerfile_inline: |
+        FROM node:22-alpine AS base
+        ENV PNPM_HOME="/pnpm" PATH="/pnpm:$${PATH}" NEXT_TELEMETRY_DISABLED=1
+        RUN corepack enable && corepack prepare pnpm@10.20.0 --activate
+        WORKDIR /app
+
+        FROM base AS builder
+        ARG NEXT_PUBLIC_API_URL
+        ARG NEXT_PUBLIC_BASE_URL
+        ENV NEXT_PUBLIC_API_URL=$${NEXT_PUBLIC_API_URL} NEXT_PUBLIC_BASE_URL=$${NEXT_PUBLIC_BASE_URL}
+        COPY pnpm-lock.yaml pnpm-workspace.yaml .npmrc package.json ./
+        COPY apps/web/package.json ./apps/web/package.json
+        COPY apps/api/package.json ./apps/api/package.json
+        COPY packages/shared/package.json ./packages/shared/package.json
+        COPY packages/tsconfig/package.json ./packages/tsconfig/package.json
+        COPY packages/eslint-config/package.json ./packages/eslint-config/package.json
+        RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --filter @record/web...
+        COPY packages/tsconfig ./packages/tsconfig
+        COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
+        COPY packages/shared/src ./packages/shared/src
+        COPY apps/web/next.config.ts apps/web/postcss.config.mjs apps/web/tsconfig.json ./apps/web/
+        COPY apps/web/src ./apps/web/src
+        RUN find apps/web/src packages/shared/src -type f -name '*.js' -delete && pnpm --filter @record/web build && mkdir -p apps/web/public
+
+        FROM node:22-alpine AS runner
+        WORKDIR /app
+        ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+        RUN apk add --no-cache tini=~0.19
+        COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
+        COPY --from=builder --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+        COPY --from=builder --chown=node:node /app/apps/web/public ./apps/web/public
+        USER node
+        EXPOSE 3000
+        HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1
+        ENTRYPOINT ["/sbin/tini", "--"]
+        CMD ["node", "apps/web/server.js"]
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["3000"]
     environment:
       NODE_ENV: production
       PORT: "3000"
-      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
       API_URL: http://api:4000
     networks: [internal]
     depends_on:
@@ -55,3 +104,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

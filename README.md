@@ -49,10 +49,10 @@ scripts/validate-all.sh
 
 The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 17 Compose models, and rejects duplicated shared-service containers inside platform stacks. It never runs `docker compose up`.
 
-## Required image handoff
+## Build sources
 
-The third-party recipe images are preserved at the versions recorded in the source recipes. First-party components do not currently have a confirmed common registry/tag contract, so their generated env files deliberately use `example.invalid/...:replace-with-pinned-image` values. Replace every such value with a built, immutable image reference before importing the platform into Coolify. Do not silently turn those placeholders into guessed GHCR paths.
+Existing published images are used for Plane, Postiz, n8n, Twenty, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.
 
-Postiz currently follows its fork's `ghcr.io/gitroomhq/postiz-app:latest` reference. Resolve and record a registry digest before production deployment if the fork does not publish an immutable release tag.
+Plane is pinned to the healthy server-deployed `v1.3.0` release. Postiz is pinned to the exact digest currently running healthily on the server (`sha256:1d5a5dc6b896747d1483c01dc2562165bd313ad601b32f6cabb7f7dd08a911a9`) instead of the mutable `latest` tag.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.
