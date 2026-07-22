@@ -21,6 +21,39 @@ This repository contains the complete production Compose shape for the OGG portf
 - [n8n](https://www.workflow.con.fyi) ([recipe](platforms/n8n/))
 - [Twenty](https://www.crm.con.fyi) ([recipe](platforms/twenty/))
 
+## Production DNS A records
+
+Every record below points to the production server at `68.183.135.86`. These are the exact hostnames configured in Coolify; apex domains are not part of the current routing map.
+
+| DNS zone | Name | Type | Value |
+| --- | --- | --- | --- |
+| `kensi.ai` | `www` | `A` | `68.183.135.86` |
+| `kensi.ai` | `api` | `A` | `68.183.135.86` |
+| `agentshq.sh` | `www` | `A` | `68.183.135.86` |
+| `agentshq.sh` | `api` | `A` | `68.183.135.86` |
+| `teamtoast.ai` | `www` | `A` | `68.183.135.86` |
+| `teamtoast.ai` | `api` | `A` | `68.183.135.86` |
+| `clavinci.com` | `www` | `A` | `68.183.135.86` |
+| `clavinci.com` | `api` | `A` | `68.183.135.86` |
+| `togglebox.dev` | `www` | `A` | `68.183.135.86` |
+| `togglebox.dev` | `api` | `A` | `68.183.135.86` |
+| `openpay.fyi` | `www` | `A` | `68.183.135.86` |
+| `openpay.fyi` | `api` | `A` | `68.183.135.86` |
+| `ploon.ai` | `www` | `A` | `68.183.135.86` |
+| `opengrowthgroup.co` | `www` | `A` | `68.183.135.86` |
+| `lokei.dev` | `www` | `A` | `68.183.135.86` |
+| `lokei.dev` | `api` | `A` | `68.183.135.86` |
+| `lokei.dev` | `relay` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.albert` | `A` | `68.183.135.86` |
+| `con.fyi` | `api.albert` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.record` | `A` | `68.183.135.86` |
+| `con.fyi` | `api.record` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.pm` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.post` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.ig` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.workflow` | `A` | `68.183.135.86` |
+| `con.fyi` | `www.crm` | `A` | `68.183.135.86` |
+
 ## Layout
 
 - `infrastructure/compose.yaml` contains the reusable backing services.
