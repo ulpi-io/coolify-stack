@@ -189,22 +189,28 @@ for stack in "${stacks[@]}"; do
   while IFS= read -r project_uuid; do
     [[ -n "$project_uuid" ]] || continue
     project_json=$(api GET "projects/$project_uuid" </dev/null) || die "could not inspect $project_name"
-    while IFS= read -r application_uuid; do
-      [[ -n "$application_uuid" ]] || continue
-      api DELETE "applications/$application_uuid" </dev/null >/dev/null || die "could not delete application $application_uuid"
-    done < <(jq -r '.environments[]?.applications[]?.uuid // empty' <<<"$project_json")
-    while IFS= read -r service_uuid; do
-      [[ -n "$service_uuid" ]] || continue
-      api DELETE "services/$service_uuid" </dev/null >/dev/null || die "could not delete service $service_uuid"
-    done < <(jq -r '.environments[]?.services[]?.uuid // empty' <<<"$project_json")
+    while IFS= read -r environment_uuid; do
+      [[ -n "$environment_uuid" ]] || continue
+      environment_json=$(api GET "projects/$project_uuid/$environment_uuid" </dev/null) || die "could not inspect $project_name environment"
+      while IFS= read -r application_uuid; do
+        [[ -n "$application_uuid" ]] || continue
+        api DELETE "applications/$application_uuid" </dev/null >/dev/null || die "could not delete application $application_uuid"
+      done < <(jq -r '.applications[]?.uuid // empty' <<<"$environment_json")
+      while IFS= read -r service_uuid; do
+        [[ -n "$service_uuid" ]] || continue
+        api DELETE "services/$service_uuid" </dev/null >/dev/null || die "could not delete service $service_uuid"
+      done < <(jq -r '.services[]?.uuid // empty' <<<"$environment_json")
+    done < <(jq -r '.environments[]?.uuid // empty' <<<"$project_json")
 
+    deleted=0
     for _ in {1..30}; do
-      project_json=$(api GET "projects/$project_uuid" </dev/null) || break
-      resource_count=$(jq '[.environments[]? | ((.applications // []) + (.services // []))] | flatten | length' <<<"$project_json")
-      [[ "$resource_count" == 0 ]] && break
+      if api DELETE "projects/$project_uuid" </dev/null >/dev/null 2>&1; then
+        deleted=1
+        break
+      fi
       sleep 2
     done
-    api DELETE "projects/$project_uuid" </dev/null >/dev/null || die "could not delete project $project_name"
+    [[ $deleted -eq 1 ]] || die "could not delete project $project_name"
     echo "Deleted $project_name"
   done < <(jq -r --arg name "$project_name" '.[] | select(.name == $name) | .uuid' <<<"$projects_json")
 done
