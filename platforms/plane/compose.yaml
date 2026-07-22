@@ -45,7 +45,9 @@ services:
     <<: *service-defaults
     image: makeplane/plane-backend:${PLANE_RELEASE:?required}
     command: ./bin/docker-entrypoint-api.sh
-    environment: *plane-env
+    environment:
+      <<: *plane-env
+      GUNICORN_WORKERS: "2"
     networks: [internal, shared]
   worker:
     <<: *service-defaults
