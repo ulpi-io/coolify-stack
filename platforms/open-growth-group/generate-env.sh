@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.open-growth-group.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://opengrowthgroup.co
+APP_URL=https://www.opengrowthgroup.co
 GIT_AUTH_TOKEN=
 EOF
 } > "$tmp"

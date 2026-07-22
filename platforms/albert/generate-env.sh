@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.albert.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://albert.con.fyi
+APP_URL=https://www.albert.con.fyi
 GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 REVERB_APP_ID=albert

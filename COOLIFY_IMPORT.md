@@ -53,30 +53,32 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 
 | Folder | Public service | Domain |
 | --- | --- | --- |
-| `platforms/kensi-ai` | `web` | `https://kensi.ai` |
+| `platforms/kensi-ai` | `web` | `https://www.kensi.ai` |
 | `platforms/kensi-ai` | `nginx` | `https://api.kensi.ai` |
 | `platforms/agentshq` | `web` | `https://www.agentshq.sh` |
 | `platforms/agentshq` | `api` | `https://api.agentshq.sh` |
 | `platforms/open-kudos` | `web` | `https://www.teamtoast.ai` |
 | `platforms/open-kudos` | `nginx` | `https://api.teamtoast.ai` |
-| `platforms/insight` | `dashboard` | `https://clavinci.com` |
-| `platforms/togglebox` | `admin` | `https://togglebox.dev` |
+| `platforms/insight` | `dashboard` | `https://www.clavinci.com` |
+| `platforms/insight` | `api` | `https://api.clavinci.com` |
+| `platforms/togglebox` | `admin` | `https://www.togglebox.dev` |
 | `platforms/togglebox` | `api` | `https://api.togglebox.dev` |
 | `platforms/openpay` | `web` | `https://www.openpay.fyi` |
 | `platforms/openpay` | `nginx` | `https://api.openpay.fyi` |
-| `platforms/ploon` | `web` | `https://ploon.ai` |
-| `platforms/open-growth-group` | `web` | `https://opengrowthgroup.co` |
-| `platforms/lokei` | `web` | `https://lokei.dev` |
+| `platforms/ploon` | `web` | `https://www.ploon.ai` |
+| `platforms/open-growth-group` | `web` | `https://www.opengrowthgroup.co` |
+| `platforms/lokei` | `web` | `https://www.lokei.dev` |
 | `platforms/lokei` | `nginx` | `https://api.lokei.dev` |
 | `platforms/lokei` | `relay` | `https://relay.lokei.dev` |
-| `platforms/albert` | `web` | `https://albert.con.fyi` |
-| `platforms/record-cloud` | `web` | `https://record.con.fyi` |
+| `platforms/albert` | `web` | `https://www.albert.con.fyi` |
+| `platforms/albert` | `nginx` | `https://api.albert.con.fyi` |
+| `platforms/record-cloud` | `web` | `https://www.record.con.fyi` |
 | `platforms/record-cloud` | `api` | `https://api.record.con.fyi` |
-| `platforms/plane` | `proxy` | `https://pm.con.fyi` |
-| `platforms/postiz` | `postiz` | `https://post.con.fyi` |
-| `platforms/nudgra-oss` | `app` | `https://ig.con.fyi` |
-| `platforms/n8n` | `n8n` | `https://workflow.con.fyi` |
-| `platforms/twenty` | `twenty` | `https://crm.con.fyi` |
+| `platforms/plane` | `proxy` | `https://www.pm.con.fyi` |
+| `platforms/postiz` | `postiz` | `https://www.post.con.fyi` |
+| `platforms/nudgra-oss` | `app` | `https://www.ig.con.fyi` |
+| `platforms/n8n` | `n8n` | `https://www.workflow.con.fyi` |
+| `platforms/twenty` | `twenty` | `https://www.crm.con.fyi` |
 
 Coolify/Traefik owns public routing and TLS. Do not add host-published database or backing-service ports to these recipes.
 

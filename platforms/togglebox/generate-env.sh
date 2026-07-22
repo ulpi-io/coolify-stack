@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.togglebox.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://togglebox.dev
+APP_URL=https://www.togglebox.dev
 API_PUBLIC_URL=https://api.togglebox.dev
 GIT_AUTH_TOKEN=
 JWT_SECRET=$(random_hex)

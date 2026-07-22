@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.record-cloud.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://record.con.fyi
+APP_URL=https://www.record.con.fyi
 API_PUBLIC_URL=https://api.record.con.fyi
 GIT_AUTH_TOKEN=
 BETTER_AUTH_SECRET=$(random_hex)

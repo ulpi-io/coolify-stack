@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.kensi-ai.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://kensi.ai
+APP_URL=https://www.kensi.ai
 API_PUBLIC_URL=https://api.kensi.ai
 GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
