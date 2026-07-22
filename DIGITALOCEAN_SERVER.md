@@ -158,4 +158,12 @@ The script deploys shared infrastructure first and then each platform. It opens
 Coolify's localhost-only API only for the duration of the run and revokes its
 temporary token on exit. It does not create, delete, or reconfigure resources.
 
+Redeploy one resource without touching any other application:
+
+```bash
+scripts/deploy-resources.sh --apply \
+  --only kensi-ai \
+  --ssh-key ~/.ssh/id_ed25519_digitalocean
+```
+
 If an operation would delete data, rotate secrets, alter network access, or affect multiple applications, stop and obtain explicit authorization first.

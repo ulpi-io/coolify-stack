@@ -5,6 +5,7 @@ coolify_host=${COOLIFY_HOST:-68.183.135.86}
 coolify_user=${COOLIFY_USER:-root}
 ssh_key=${COOLIFY_SSH_KEY:-}
 timeout_seconds=${DEPLOY_TIMEOUT_SECONDS:-5400}
+only_slug=""
 token_name=ogg-coolify-stack-deploy
 token_file=/tmp/ogg-coolify-stack-deploy-token
 api_managed=0
@@ -15,6 +16,7 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   scripts/deploy-resources.sh --apply --ssh-key PATH
+  scripts/deploy-resources.sh --apply --only SLUG --ssh-key PATH
 
 Deploys the existing Coolify resources in dependency order. It does not create,
 delete, or reconfigure resources, environments, domains, networks, or volumes.
@@ -24,6 +26,7 @@ Options:
   --ssh-key PATH    SSH private key used for the Coolify host.
   --host HOST       Coolify server SSH host (default: 68.183.135.86).
   --timeout SECONDS Per-resource deployment timeout (default: 5400).
+  --only SLUG       Deploy only one resource (for example: infrastructure or kensi-ai).
 EOF
 }
 
@@ -39,6 +42,7 @@ while (($#)); do
     --ssh-key) [[ $# -ge 2 ]] || die "--ssh-key needs a path"; ssh_key=$2; shift 2 ;;
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --timeout) [[ $# -ge 2 ]] || die "--timeout needs seconds"; timeout_seconds=$2; shift 2 ;;
+    --only) [[ $# -ge 2 ]] || die "--only needs a slug"; only_slug=$2; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown argument: $1" ;;
   esac
@@ -49,25 +53,34 @@ done
 [[ "$timeout_seconds" =~ ^[0-9]+$ && "$timeout_seconds" -ge 60 ]] || die "--timeout must be at least 60 seconds"
 command -v jq >/dev/null 2>&1 || die "jq is required"
 
-resources=(
-  'Shared Infrastructure Stack'
-  'Kensi AI Stack'
-  'AgentsHQ Stack'
-  'TeamToast Stack'
-  'Clavinci Stack'
-  'Togglebox Stack'
-  'OpenPay Stack'
-  'Ploon Stack'
-  'Open Growth Group Stack'
-  'Lokei Stack'
-  'Albert Stack'
-  'Record Cloud Stack'
-  'Plane Stack'
-  'Postiz Stack'
-  'Nudgra OSS Stack'
-  'N8N Stack'
-  'Twenty Stack'
+resource_specs=(
+  'infrastructure|Shared Infrastructure Stack'
+  'kensi-ai|Kensi AI Stack'
+  'agentshq|AgentsHQ Stack'
+  'open-kudos|TeamToast Stack'
+  'insight|Clavinci Stack'
+  'togglebox|Togglebox Stack'
+  'openpay|OpenPay Stack'
+  'ploon|Ploon Stack'
+  'open-growth-group|Open Growth Group Stack'
+  'lokei|Lokei Stack'
+  'albert|Albert Stack'
+  'record-cloud|Record Cloud Stack'
+  'plane|Plane Stack'
+  'postiz|Postiz Stack'
+  'nudgra-oss|Nudgra OSS Stack'
+  'n8n|N8N Stack'
+  'twenty|Twenty Stack'
 )
+
+if [[ -n "$only_slug" ]]; then
+  known_slug=0
+  for resource_spec in "${resource_specs[@]}"; do
+    IFS='|' read -r slug _ <<<"$resource_spec"
+    [[ "$slug" == "$only_slug" ]] && known_slug=1
+  done
+  [[ $known_slug -eq 1 ]] || die "unknown resource slug for --only: $only_slug"
+fi
 
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes -i "$ssh_key")
 
@@ -127,7 +140,10 @@ api() {
 
 applications_json=$(api GET applications) || die "could not list Coolify applications"
 
-for resource_name in "${resources[@]}"; do
+deployed_count=0
+for resource_spec in "${resource_specs[@]}"; do
+  IFS='|' read -r slug resource_name <<<"$resource_spec"
+  [[ -z "$only_slug" || "$slug" == "$only_slug" ]] || continue
   matches=$(jq --arg name "$resource_name" '[.[] | select(.name == $name)] | length' <<<"$applications_json")
   [[ "$matches" == 1 ]] || die "expected exactly one existing application named $resource_name, found $matches"
   application_uuid=$(jq -r --arg name "$resource_name" '.[] | select(.name == $name) | .uuid' <<<"$applications_json")
@@ -146,6 +162,7 @@ for resource_name in "${resources[@]}"; do
         application_json=$(api GET "applications/$application_uuid") || die "could not inspect $resource_name after deployment"
         echo "Deployed $resource_name ($(jq -r '.status // "unknown"' <<<"$application_json"))"
         active_deployment_uuid=""
+        deployed_count=$((deployed_count + 1))
         break
         ;;
       failed|cancelled-by-user)
@@ -163,4 +180,9 @@ for resource_name in "${resources[@]}"; do
   done
 done
 
-echo "DONE: all 17 Coolify resources deployed in dependency order."
+if [[ -n "$only_slug" ]]; then
+  echo "DONE: $only_slug deployed without touching any other resource."
+else
+  [[ $deployed_count -eq 17 ]] || die "expected to deploy 17 resources, deployed $deployed_count"
+  echo "DONE: all 17 Coolify resources deployed in dependency order."
+fi
