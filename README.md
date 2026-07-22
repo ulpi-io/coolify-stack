@@ -1,6 +1,25 @@
 # OGG Coolify Stack Recipes
 
-This repository contains the complete production Compose shape for the OGG portfolio plus the repeatable Coolify resource-creation workflow. It never deploys containers or changes DNS.
+This repository contains the complete production Compose shape for the OGG portfolio plus repeatable Coolify resource-creation and deployment workflows. It does not change DNS.
+
+## Customer-facing platform table of contents
+
+- [Kensi AI](https://www.kensi.ai) ([API](https://api.kensi.ai), [recipe](platforms/kensi-ai/))
+- [AgentsHQ](https://www.agentshq.sh) ([API](https://api.agentshq.sh), [recipe](platforms/agentshq/))
+- [TeamToast](https://www.teamtoast.ai) ([API](https://api.teamtoast.ai), [recipe](platforms/open-kudos/))
+- [Clavinci](https://www.clavinci.com) ([API](https://api.clavinci.com), [recipe](platforms/insight/))
+- [Togglebox](https://www.togglebox.dev) ([API](https://api.togglebox.dev), [recipe](platforms/togglebox/))
+- [OpenPay](https://www.openpay.fyi) ([API](https://api.openpay.fyi), [recipe](platforms/openpay/))
+- [Ploon](https://www.ploon.ai) ([recipe](platforms/ploon/))
+- [Open Growth Group](https://www.opengrowthgroup.co) ([recipe](platforms/open-growth-group/))
+- [Lokei](https://www.lokei.dev) ([API](https://api.lokei.dev), [recipe](platforms/lokei/))
+- [Albert](https://www.albert.con.fyi) ([API](https://api.albert.con.fyi), [recipe](platforms/albert/))
+- [Record Cloud](https://www.record.con.fyi) ([API](https://api.record.con.fyi), [recipe](platforms/record-cloud/))
+- [Plane](https://www.pm.con.fyi) ([recipe](platforms/plane/))
+- [Postiz](https://www.post.con.fyi) ([recipe](platforms/postiz/))
+- [Nudgra OSS](https://www.ig.con.fyi) ([recipe](platforms/nudgra-oss/))
+- [n8n](https://www.workflow.con.fyi) ([recipe](platforms/n8n/))
+- [Twenty](https://www.crm.con.fyi) ([recipe](platforms/twenty/))
 
 ## Layout
 
