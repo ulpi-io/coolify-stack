@@ -31,9 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.openpay.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://www.openpay.fyi
-OPENPAY_API_IMAGE=example.invalid/ogg/openpay-api:replace-with-pinned-image
-OPENPAY_HORIZON_IMAGE=example.invalid/ogg/openpay-horizon:replace-with-pinned-image
-OPENPAY_WEB_IMAGE=example.invalid/ogg/openpay-web:replace-with-pinned-image
+API_PUBLIC_URL=https://api.openpay.fyi
+GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 MAIL_FROM_ADDRESS=no-reply@openpay.fyi
 MAIL_FROM_NAME=OpenPay

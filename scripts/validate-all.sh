@@ -52,7 +52,7 @@ for slug in "${platforms[@]}"; do
     echo "$env_file is not mode 0600" >&2
     exit 1
   }
-  docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config -q
+  GIT_AUTH_TOKEN=${GIT_AUTH_TOKEN:-validation-only} docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config -q
   while IFS= read -r service; do
     case "$service" in
       mysql|postgres|postgresql|redis|valkey|valkey-cache|valkey-queue|minio|qdrant|rabbitmq|elasticsearch|temporal|mailpit)
@@ -60,11 +60,12 @@ for slug in "${platforms[@]}"; do
         exit 1
         ;;
     esac
-  done < <(docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config --services)
+  done < <(GIT_AUTH_TOKEN=${GIT_AUTH_TOKEN:-validation-only} docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config --services)
 done
 
-if rg -n 'example\.invalid|:latest([[:space:]]|$)' "$validation_dir" >/dev/null; then
-  echo "WARNING: generated platform env files still contain image placeholders or mutable tags." >&2
+if rg -n ':(latest|stable)([[:space:]]|$)' "$validation_dir" >/dev/null; then
+  echo "A published image still uses a mutable latest or stable tag." >&2
+  exit 1
 fi
 
 echo "Validated 17 Compose files, 17 generators, and 16 platform fragments."

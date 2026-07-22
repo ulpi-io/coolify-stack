@@ -32,7 +32,7 @@ Create the entire production stack as 17 self-contained folders: one infrastruct
 - The infrastructure generator creates shared service credentials and matching per-platform shared-env fragments; each platform generator consumes only its own fragment and produces its local .env.
 - Every generator refuses overwrite without --force, creates mode-0600 files, uses cryptographic randomness, prints no secrets, and is safe to rerun.
 - Platform Compose files use the Coolify external shared network and environment-provided shared endpoints; depends_on is limited to services in the same file.
-- All images are immutable or exactly versioned, all application services have health checks where supported, all required variables fail closed, and no shared backing port is publicly published.
+- Existing public images use explicit versions where available; otherwise Coolify builds from the declared source repository. Application services have health checks where supported, required variables fail closed, and no shared backing port is publicly published.
 
 ## Existing Code Leverage
 
@@ -161,7 +161,7 @@ Create one production Compose file for AgentsHQ, combining ulpi-io/agentshq-api 
 
 **Acceptance Criteria:**
 
-- platforms/agentshq/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://www.agentshq.sh/, and references only the required shared endpoints: MySQL 8.4.
+- platforms/agentshq/compose.yaml contains the verified API and web, uses its source repository or an existing published image, targets https://www.agentshq.sh/, and references only the required shared endpoints: MySQL 8.4.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/agentshq/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching agentshq shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -219,7 +219,7 @@ Create one production Compose file for Insight / Clavinci, combining ulpi-io/ins
 
 **Acceptance Criteria:**
 
-- platforms/insight/compose.yaml contains the verified API and dashboard, uses immutable image variables or exact image versions, targets https://clavinci.com, and references only the required shared endpoints: MySQL 8.4.
+- platforms/insight/compose.yaml contains the verified API and dashboard, uses its source repository or an existing published image, targets https://clavinci.com, and references only the required shared endpoints: MySQL 8.4.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/insight/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching insight shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -248,7 +248,7 @@ Create one production Compose file for Togglebox, combining ulpi-io/togglebox in
 
 **Acceptance Criteria:**
 
-- platforms/togglebox/compose.yaml contains the verified MySQL-compatible API and admin, uses immutable image variables or exact image versions, targets https://togglebox.dev, and references only the required shared endpoints: MySQL 8.4; DynamoDB is forbidden.
+- platforms/togglebox/compose.yaml contains the verified MySQL-compatible API and admin, uses its source repository or an existing published image, targets https://togglebox.dev, and references only the required shared endpoints: MySQL 8.4; DynamoDB is forbidden.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/togglebox/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching togglebox shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -306,7 +306,7 @@ Create one production Compose file for Ploon, combining ulpi-io/ploon-web into o
 
 **Acceptance Criteria:**
 
-- platforms/ploon/compose.yaml contains the verified stateless web, uses immutable image variables or exact image versions, targets https://ploon.ai, and references only the required shared endpoints: No stateful shared dependency unless source evidence proves an API requirement.
+- platforms/ploon/compose.yaml contains the verified stateless web, uses its source repository or an existing published image, targets https://ploon.ai, and references only the required shared endpoints: No stateful shared dependency unless source evidence proves an API requirement.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/ploon/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching ploon shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -335,7 +335,7 @@ Create one production Compose file for Open Growth Group website, combining Cipr
 
 **Acceptance Criteria:**
 
-- platforms/open-growth-group/compose.yaml contains the verified stateless website, uses immutable image variables or exact image versions, targets https://opengrowthgroup.co, and references only the required shared endpoints: No stateful shared dependency.
+- platforms/open-growth-group/compose.yaml contains the verified stateless website, uses its source repository or an existing published image, targets https://opengrowthgroup.co, and references only the required shared endpoints: No stateful shared dependency.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/open-growth-group/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching open-growth-group shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -422,7 +422,7 @@ Create one production Compose file for Record Cloud, combining ulpi-io/record-cl
 
 **Acceptance Criteria:**
 
-- platforms/record-cloud/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://record.con.fyi, and references only the required shared endpoints: MySQL 8.4, MinIO, and Mailpit.
+- platforms/record-cloud/compose.yaml contains the verified API and web, uses its source repository or an existing published image, targets https://record.con.fyi, and references only the required shared endpoints: MySQL 8.4, MinIO, and Mailpit.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/record-cloud/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching record-cloud shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -451,7 +451,7 @@ Create one production Compose file for Plane, combining makeplane/plane into one
 
 **Acceptance Criteria:**
 
-- platforms/plane/compose.yaml contains the verified pinned Plane application services, uses immutable image variables or exact image versions, targets https://pm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO.
+- platforms/plane/compose.yaml contains the verified pinned Plane application services, uses its source repository or an existing published image, targets https://pm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/plane/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching plane shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -509,7 +509,7 @@ Create one production Compose file for Nudgra OSS, combining MaikoCode/nudgra-os
 
 **Acceptance Criteria:**
 
-- platforms/nudgra-oss/compose.yaml contains the verified pinned Nudgra application services, uses immutable image variables or exact image versions, targets https://ig.con.fyi, and references only the required shared endpoints: PostgreSQL 16 with pgcrypto and pg-boss.
+- platforms/nudgra-oss/compose.yaml contains the verified pinned Nudgra application services, uses its source repository or an existing published image, targets https://ig.con.fyi, and references only the required shared endpoints: PostgreSQL 16 with pgcrypto and pg-boss.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/nudgra-oss/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching nudgra-oss shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 

@@ -31,8 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.record-cloud.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://record.con.fyi
-RECORD_API_IMAGE=example.invalid/ogg/record-cloud-api:replace-with-pinned-image
-RECORD_WEB_IMAGE=example.invalid/ogg/record-cloud-web:replace-with-pinned-image
+API_PUBLIC_URL=https://api.record.con.fyi
+GIT_AUTH_TOKEN=
 BETTER_AUTH_SECRET=$(random_hex)
 STORAGE_SIGNING_SECRET=$(random_hex)
 SMTP_FROM=StudioCap <no-reply@record.con.fyi>

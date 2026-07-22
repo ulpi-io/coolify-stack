@@ -10,7 +10,12 @@ x-service-defaults: &service-defaults
 x-laravel-env: &laravel-env
   APP_ENV: production
   APP_DEBUG: "false"
-  APP_URL: ${APP_URL:?APP_URL is required}
+  APP_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
+  FRONTEND_URL: ${APP_URL:?APP_URL is required}
+  CORS_ALLOWED_ORIGINS: ${APP_URL:?APP_URL is required}
+  SANCTUM_STATEFUL_DOMAINS: www.teamtoast.ai
+  SESSION_DOMAIN: .teamtoast.ai
+  SESSION_SECURE_COOKIE: "true"
   APP_KEY: ${APP_KEY:?APP_KEY is required}
   DB_CONNECTION: mysql
   DB_HOST: ${DB_HOST:?DB_HOST is required}
@@ -35,7 +40,12 @@ x-laravel-env: &laravel-env
   LOG_CHANNEL: stderr
 
 x-api-image: &api-image
-  image: ${OPEN_KUDOS_APP_IMAGE:?required}
+  build:
+    context: https://github.com/ulpi-io/open-kudos-api.git#main
+    dockerfile: docker/php/Dockerfile
+    secrets:
+      - source: git_auth_token
+        target: GIT_AUTH_TOKEN
   environment: *laravel-env
   networks: [internal, shared]
 services:
@@ -44,7 +54,7 @@ services:
     restart: "no"
     entrypoint: []
     command: ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache"]
-  api:
+  app:
     <<: [*service-defaults, *api-image]
     depends_on:
       migrate:
@@ -56,14 +66,29 @@ services:
       retries: 5
   nginx:
     <<: *service-defaults
-    image: ${OPEN_KUDOS_NGINX_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/open-kudos-api.git#main
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM nginx:1.27-alpine
+        COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+        COPY public /var/www/public
+        EXPOSE 80
+    expose: ["80"]
     networks: [internal]
     depends_on:
-      api:
+      app:
         condition: service_healthy
   worker:
     <<: *service-defaults
-    image: ${OPEN_KUDOS_WORKER_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/open-kudos-api.git#main
+      dockerfile: docker/worker/Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     environment: *laravel-env
     networks: [internal, shared]
     depends_on:
@@ -71,7 +96,12 @@ services:
         condition: service_completed_successfully
   scheduler:
     <<: *service-defaults
-    image: ${OPEN_KUDOS_SCHEDULER_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/open-kudos-api.git#main
+      dockerfile: docker/scheduler/Dockerfile
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     environment: *laravel-env
     networks: [internal, shared]
     depends_on:
@@ -79,11 +109,19 @@ services:
         condition: service_completed_successfully
   web:
     <<: *service-defaults
-    image: ${OPEN_KUDOS_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/open-kudos-web.git#main
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+        NEXT_PUBLIC_APP_URL: ${APP_URL:?required}
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["3000"]
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
       API_URL: http://nginx
     networks: [internal]
 
@@ -92,3 +130,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

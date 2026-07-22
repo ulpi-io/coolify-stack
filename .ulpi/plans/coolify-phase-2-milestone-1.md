@@ -88,7 +88,7 @@ flowchart LR
 
 ### TASK-002: Create the Kensi AI platform stack
 
-Create one production Compose file for Kensi AI, combining ulpi-io/kensi-ai-api and ulpi-io/kensi-ai-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, cache Valkey, queue Valkey, optional MinIO, and Mailpit when SMTP variables are present through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Kensi AI, combining ulpi-io/kensi-ai-api and ulpi-io/kensi-ai-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, durable Redis, optional MinIO, and Mailpit when SMTP variables are present through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -101,7 +101,7 @@ Create one production Compose file for Kensi AI, combining ulpi-io/kensi-ai-api 
 
 **Acceptance Criteria:**
 
-- platforms/kensi-ai/compose.yaml contains the verified API, web, worker, and scheduler, uses immutable image variables or exact image versions, targets https://kensi.ai, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, optional MinIO, and Mailpit when SMTP variables are present.
+- platforms/kensi-ai/compose.yaml contains the verified API, web, worker, and scheduler, uses its source repository or an existing published image, targets https://kensi.ai, and references only the required shared endpoints: MySQL 8.4, durable Redis, optional MinIO, and Mailpit when SMTP variables are present.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/kensi-ai/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching kensi-ai shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -131,7 +131,7 @@ Create one production Compose file for AgentsHQ, combining ulpi-io/agentshq-api 
 
 **Acceptance Criteria:**
 
-- platforms/agentshq/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://www.agentshq.sh/, and references only the required shared endpoints: MySQL 8.4.
+- platforms/agentshq/compose.yaml contains the verified API and web, uses its source repository or an existing published image, targets https://www.agentshq.sh/, and references only the required shared endpoints: MySQL 8.4.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/agentshq/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching agentshq shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -148,7 +148,7 @@ shellcheck platforms/agentshq/generate-env.sh && tmp_dir=$(mktemp -d) && infrast
 
 ### TASK-004: Create the OpenKudos / TeamToast platform stack
 
-Create one production Compose file for OpenKudos / TeamToast, combining ulpi-io/open-kudos-api and ulpi-io/open-kudos-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, cache Valkey, queue Valkey, and Mailpit whenever its mail variables are enabled through the shared external network without embedding duplicate backing services.
+Create one production Compose file for OpenKudos / TeamToast, combining ulpi-io/open-kudos-api and ulpi-io/open-kudos-web into one logical Coolify platform stack. It contains API, web, worker, and scheduler and connects to MySQL 8.4, durable Redis, and Mailpit whenever its mail variables are enabled through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -161,7 +161,7 @@ Create one production Compose file for OpenKudos / TeamToast, combining ulpi-io/
 
 **Acceptance Criteria:**
 
-- platforms/open-kudos/compose.yaml contains the verified API, web, worker, and scheduler, uses immutable image variables or exact image versions, targets https://www.teamtoast.ai/, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, and Mailpit whenever its mail variables are enabled.
+- platforms/open-kudos/compose.yaml contains the verified API, web, worker, and scheduler, uses its source repository or an existing published image, targets https://www.teamtoast.ai/, and references only the required shared endpoints: MySQL 8.4, durable Redis, and Mailpit whenever its mail variables are enabled.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/open-kudos/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching open-kudos shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -191,7 +191,7 @@ Create one production Compose file for Insight / Clavinci, combining ulpi-io/ins
 
 **Acceptance Criteria:**
 
-- platforms/insight/compose.yaml contains the verified API and dashboard, uses immutable image variables or exact image versions, targets https://clavinci.com, and references only the required shared endpoints: MySQL 8.4.
+- platforms/insight/compose.yaml contains the verified API and dashboard, uses its source repository or an existing published image, targets https://clavinci.com, and references only the required shared endpoints: MySQL 8.4.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/insight/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching insight shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -221,7 +221,7 @@ Create one production Compose file for Togglebox, combining ulpi-io/togglebox in
 
 **Acceptance Criteria:**
 
-- platforms/togglebox/compose.yaml contains the verified MySQL-compatible API and admin, uses immutable image variables or exact image versions, targets https://togglebox.dev, and references only the required shared endpoints: MySQL 8.4; DynamoDB is forbidden.
+- platforms/togglebox/compose.yaml contains the verified MySQL-compatible API and admin, uses its source repository or an existing published image, targets https://togglebox.dev, and references only the required shared endpoints: MySQL 8.4; DynamoDB is forbidden.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/togglebox/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching togglebox shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -238,7 +238,7 @@ shellcheck platforms/togglebox/generate-env.sh && tmp_dir=$(mktemp -d) && infras
 
 ### TASK-007: Create the OpenPay platform stack
 
-Create one production Compose file for OpenPay, combining CiprianSpiridon/OpenPayApi and CiprianSpiridon/OpenPayWeb into one logical Coolify platform stack. It contains API, web, worker/Horizon when enabled, and scheduler and connects to MySQL 8.4, database or Valkey-backed cache/queues as selected, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.
+Create one production Compose file for OpenPay, combining CiprianSpiridon/OpenPayApi and CiprianSpiridon/OpenPayWeb into one logical Coolify platform stack. It contains API, web, worker/Horizon when enabled, and scheduler and connects to MySQL 8.4, database-backed cache/queues by default, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -251,7 +251,7 @@ Create one production Compose file for OpenPay, combining CiprianSpiridon/OpenPa
 
 **Acceptance Criteria:**
 
-- platforms/openpay/compose.yaml contains the verified API, web, worker/Horizon when enabled, and scheduler, uses immutable image variables or exact image versions, targets https://www.openpay.fyi/, and references only the required shared endpoints: MySQL 8.4, database or Valkey-backed cache/queues as selected, optional MinIO, and Mailpit.
+- platforms/openpay/compose.yaml contains the verified API, web, worker/Horizon when enabled, and scheduler, uses its source repository or an existing published image, targets https://www.openpay.fyi/, and references only the required shared endpoints: MySQL 8.4, database-backed cache/queues by default, optional MinIO, and Mailpit.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/openpay/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching openpay shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -281,7 +281,7 @@ Create one production Compose file for Ploon, combining ulpi-io/ploon-web into o
 
 **Acceptance Criteria:**
 
-- platforms/ploon/compose.yaml contains the verified stateless web, uses immutable image variables or exact image versions, targets https://ploon.ai, and references only the required shared endpoints: No stateful shared dependency unless source evidence proves an API requirement.
+- platforms/ploon/compose.yaml contains the verified stateless web, uses its source repository or an existing published image, targets https://ploon.ai, and references only the required shared endpoints: No stateful shared dependency unless source evidence proves an API requirement.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/ploon/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching ploon shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -311,7 +311,7 @@ Create one production Compose file for Open Growth Group website, combining Cipr
 
 **Acceptance Criteria:**
 
-- platforms/open-growth-group/compose.yaml contains the verified stateless website, uses immutable image variables or exact image versions, targets https://opengrowthgroup.co, and references only the required shared endpoints: No stateful shared dependency.
+- platforms/open-growth-group/compose.yaml contains the verified stateless website, uses its source repository or an existing published image, targets https://opengrowthgroup.co, and references only the required shared endpoints: No stateful shared dependency.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/open-growth-group/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching open-growth-group shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -328,7 +328,7 @@ shellcheck platforms/open-growth-group/generate-env.sh && tmp_dir=$(mktemp -d) &
 
 ### TASK-010: Create the Lokei platform stack
 
-Create one production Compose file for Lokei, combining ulpi-io/lokei into one logical Coolify platform stack. It contains web/API, relay, Horizon worker, and scheduler and connects to MySQL 8.4, cache Valkey, and queue Valkey through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Lokei, combining ulpi-io/lokei into one logical Coolify platform stack. It contains web/API, relay, Horizon worker, and scheduler and connects to MySQL 8.4, durable Redis through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -341,7 +341,7 @@ Create one production Compose file for Lokei, combining ulpi-io/lokei into one l
 
 **Acceptance Criteria:**
 
-- platforms/lokei/compose.yaml contains the verified web/API, relay, Horizon worker, and scheduler, uses immutable image variables or exact image versions, targets https://lokei.dev, and references only the required shared endpoints: MySQL 8.4, cache Valkey, and queue Valkey.
+- platforms/lokei/compose.yaml contains the verified web/API, relay, Horizon worker, and scheduler, uses its source repository or an existing published image, targets https://lokei.dev, and references only the required shared endpoints: MySQL 8.4, durable Redis.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/lokei/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching lokei shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -358,7 +358,7 @@ shellcheck platforms/lokei/generate-env.sh && tmp_dir=$(mktemp -d) && infrastruc
 
 ### TASK-011: Create the Albert platform stack
 
-Create one production Compose file for Albert, combining ulpi-io/albert into one logical Coolify platform stack. It contains API, web, Horizon worker, scheduler, and Reverb and connects to MySQL 8.4, cache Valkey, queue Valkey, and Qdrant through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Albert, combining ulpi-io/albert into one logical Coolify platform stack. It contains API, web, Horizon worker, scheduler, and Reverb and connects to MySQL 8.4, durable Redis, and Qdrant through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -371,7 +371,7 @@ Create one production Compose file for Albert, combining ulpi-io/albert into one
 
 **Acceptance Criteria:**
 
-- platforms/albert/compose.yaml contains the verified API, web, Horizon worker, scheduler, and Reverb, uses immutable image variables or exact image versions, targets https://albert.con.fyi, and references only the required shared endpoints: MySQL 8.4, cache Valkey, queue Valkey, and Qdrant.
+- platforms/albert/compose.yaml contains the verified API, web, Horizon worker, scheduler, and Reverb, uses its source repository or an existing published image, targets https://albert.con.fyi, and references only the required shared endpoints: MySQL 8.4, durable Redis, and Qdrant.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/albert/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching albert shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -401,7 +401,7 @@ Create one production Compose file for Record Cloud, combining ulpi-io/record-cl
 
 **Acceptance Criteria:**
 
-- platforms/record-cloud/compose.yaml contains the verified API and web, uses immutable image variables or exact image versions, targets https://record.con.fyi, and references only the required shared endpoints: MySQL 8.4, MinIO, and Mailpit.
+- platforms/record-cloud/compose.yaml contains the verified API and web, uses its source repository or an existing published image, targets https://record.con.fyi, and references only the required shared endpoints: MySQL 8.4, MinIO, and Mailpit.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/record-cloud/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching record-cloud shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -418,7 +418,7 @@ shellcheck platforms/record-cloud/generate-env.sh && tmp_dir=$(mktemp -d) && inf
 
 ### TASK-013: Create the Plane platform stack
 
-Create one production Compose file for Plane, combining makeplane/plane into one logical Coolify platform stack. It contains pinned Plane application services and connects to PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Plane, combining makeplane/plane into one logical Coolify platform stack. It contains pinned Plane application services and connects to PostgreSQL 16, Valkey, RabbitMQ, and MinIO through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -431,7 +431,7 @@ Create one production Compose file for Plane, combining makeplane/plane into one
 
 **Acceptance Criteria:**
 
-- platforms/plane/compose.yaml contains the verified pinned Plane application services, uses immutable image variables or exact image versions, targets https://pm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, RabbitMQ, and MinIO.
+- platforms/plane/compose.yaml contains the verified pinned Plane application services, uses its source repository or an existing published image, targets https://pm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, Valkey, RabbitMQ, and MinIO.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/plane/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching plane shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -448,7 +448,7 @@ shellcheck platforms/plane/generate-env.sh && tmp_dir=$(mktemp -d) && infrastruc
 
 ### TASK-014: Create the Postiz platform stack
 
-Create one production Compose file for Postiz, combining ulpi-io/postiz-docker-compose into one logical Coolify platform stack. It contains pinned Postiz fork application services and connects to PostgreSQL 16, Valkey, Temporal, Elasticsearch, and its verified uploads storage contract through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Postiz, combining ulpi-io/postiz-docker-compose into one logical Coolify platform stack. It contains pinned Postiz fork application services and connects to PostgreSQL 16, durable Redis, Temporal, Elasticsearch, and its verified uploads storage contract through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -461,7 +461,7 @@ Create one production Compose file for Postiz, combining ulpi-io/postiz-docker-c
 
 **Acceptance Criteria:**
 
-- platforms/postiz/compose.yaml contains the verified pinned Postiz fork application services, uses immutable image variables or exact image versions, targets https://post.con.fyi, and references only the required shared endpoints: PostgreSQL 16, Valkey, Temporal, Elasticsearch, and its verified uploads storage contract.
+- platforms/postiz/compose.yaml contains the verified pinned Postiz fork application services, uses its source repository or an existing published image, targets https://post.con.fyi, and references only the required shared endpoints: PostgreSQL 16, durable Redis, Temporal, Elasticsearch, and its verified uploads storage contract.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/postiz/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching postiz shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -491,7 +491,7 @@ Create one production Compose file for Nudgra OSS, combining MaikoCode/nudgra-os
 
 **Acceptance Criteria:**
 
-- platforms/nudgra-oss/compose.yaml contains the verified pinned Nudgra application services, uses immutable image variables or exact image versions, targets https://ig.con.fyi, and references only the required shared endpoints: PostgreSQL 16 with pgcrypto and pg-boss.
+- platforms/nudgra-oss/compose.yaml contains the verified pinned Nudgra application services, uses its source repository or an existing published image, targets https://ig.con.fyi, and references only the required shared endpoints: PostgreSQL 16 with pgcrypto and pg-boss.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/nudgra-oss/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching nudgra-oss shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -508,7 +508,7 @@ shellcheck platforms/nudgra-oss/generate-env.sh && tmp_dir=$(mktemp -d) && infra
 
 ### TASK-016: Create the n8n platform stack
 
-Create one production Compose file for n8n, combining N8N_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts and connects to PostgreSQL 16 and queue Valkey through the shared external network without embedding duplicate backing services.
+Create one production Compose file for n8n, combining N8N_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts and connects to PostgreSQL 16 and durable Redis through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -521,7 +521,7 @@ Create one production Compose file for n8n, combining N8N_CURRENT_RECIPE.md into
 
 **Acceptance Criteria:**
 
-- platforms/n8n/compose.yaml contains the verified n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts, uses immutable image variables or exact image versions, targets https://workflow.con.fyi, and references only the required shared endpoints: PostgreSQL 16 and queue Valkey.
+- platforms/n8n/compose.yaml contains the verified n8n main, worker, and task runners using n8nio/n8n:2.10.4-compatible contracts, uses its source repository or an existing published image, targets https://workflow.con.fyi, and references only the required shared endpoints: PostgreSQL 16 and durable Redis.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/n8n/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching n8n shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 
@@ -538,7 +538,7 @@ shellcheck platforms/n8n/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructu
 
 ### TASK-017: Create the Twenty platform stack
 
-Create one production Compose file for Twenty, combining TWENTY_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts and connects to PostgreSQL 16, cache Valkey, pg-boss, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.
+Create one production Compose file for Twenty, combining TWENTY_CURRENT_RECIPE.md into one logical Coolify platform stack. It contains Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts and connects to PostgreSQL 16, Redis cache, pg-boss, optional MinIO, and Mailpit through the shared external network without embedding duplicate backing services.
 
 **Phase:** platform-stacks
 **Type:** infra
@@ -551,7 +551,7 @@ Create one production Compose file for Twenty, combining TWENTY_CURRENT_RECIPE.m
 
 **Acceptance Criteria:**
 
-- platforms/twenty/compose.yaml contains the verified Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts, uses immutable image variables or exact image versions, targets https://crm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, cache Valkey, pg-boss, optional MinIO, and Mailpit.
+- platforms/twenty/compose.yaml contains the verified Twenty app and worker using twentycrm/twenty:v1.15-compatible contracts, uses its source repository or an existing published image, targets https://crm.con.fyi, and references only the required shared endpoints: PostgreSQL 16, Redis cache, pg-boss, optional MinIO, and Mailpit.
 - The Compose file declares the Coolify external shared network, contains no cross-stack depends_on entry, contains no duplicate MySQL/PostgreSQL/Valkey/MinIO/Qdrant/RabbitMQ/Elasticsearch/Temporal/Mailpit service, and fails configuration when a required variable is absent.
 - platforms/twenty/generate-env.sh supports --shared-env <path> --output <path> [--force], validates the matching twenty shared fragment, writes a mode-0600 platform .env with generated application secrets and the canonical domain, prints no secrets, and refuses overwrite without --force.
 

@@ -31,11 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.open-kudos.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://www.teamtoast.ai
-OPEN_KUDOS_APP_IMAGE=example.invalid/ogg/open-kudos-api:replace-with-pinned-image
-OPEN_KUDOS_NGINX_IMAGE=example.invalid/ogg/open-kudos-nginx:replace-with-pinned-image
-OPEN_KUDOS_WORKER_IMAGE=example.invalid/ogg/open-kudos-worker:replace-with-pinned-image
-OPEN_KUDOS_SCHEDULER_IMAGE=example.invalid/ogg/open-kudos-scheduler:replace-with-pinned-image
-OPEN_KUDOS_WEB_IMAGE=example.invalid/ogg/open-kudos-web:replace-with-pinned-image
+API_PUBLIC_URL=https://api.teamtoast.ai
+GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 MAIL_FROM_ADDRESS=no-reply@teamtoast.ai
 MAIL_FROM_NAME=TeamToast

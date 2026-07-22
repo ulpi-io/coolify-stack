@@ -31,7 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.open-growth-group.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://opengrowthgroup.co
-OGG_WEB_IMAGE=example.invalid/ogg/open-growth-group-website:replace-with-pinned-image
+GIT_AUTH_TOKEN=
 EOF
 } > "$tmp"
 chmod 600 "$tmp"

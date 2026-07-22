@@ -31,8 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.togglebox.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://togglebox.dev
-TOGGLEBOX_API_IMAGE=example.invalid/ogg/togglebox-api:replace-with-pinned-image
-TOGGLEBOX_ADMIN_IMAGE=example.invalid/ogg/togglebox-admin:replace-with-pinned-image
+API_PUBLIC_URL=https://api.togglebox.dev
+GIT_AUTH_TOKEN=
 JWT_SECRET=$(random_hex)
 API_KEY_SECRET=$(random_hex)
 MAIL_FROM_ADDRESS=no-reply@togglebox.dev

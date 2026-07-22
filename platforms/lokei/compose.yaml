@@ -10,7 +10,7 @@ x-service-defaults: &service-defaults
 x-laravel-env: &laravel-env
   APP_ENV: production
   APP_DEBUG: "false"
-  APP_URL: ${APP_URL:?APP_URL is required}
+  APP_URL: ${API_PUBLIC_URL:?API_PUBLIC_URL is required}
   APP_KEY: ${APP_KEY:?APP_KEY is required}
   DB_CONNECTION: mysql
   DB_HOST: ${DB_HOST:?DB_HOST is required}
@@ -26,6 +26,9 @@ x-laravel-env: &laravel-env
   REDIS_PREFIX: ${QUEUE_PREFIX:?QUEUE_PREFIX is required}
   CACHE_STORE: redis
   QUEUE_CONNECTION: redis
+  LOKEI_WEB_URL: ${APP_URL:?APP_URL is required}
+  LOKEI_WEB_SECRET: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
+  RELAY_SERVICE_TOKEN: ${RELAY_SERVICE_TOKEN:?RELAY_SERVICE_TOKEN is required}
   MAIL_MAILER: smtp
   MAIL_HOST: ${SMTP_HOST:?SMTP_HOST is required}
   MAIL_PORT: ${SMTP_PORT:?SMTP_PORT is required}
@@ -37,45 +40,120 @@ x-laravel-env: &laravel-env
 services:
   api:
     <<: *service-defaults
-    image: ${LOKEI_API_IMAGE:?required}
+    build: &lokei-api-build
+      context: https://github.com/ulpi-io/lokei.git#main:apps/api-v2
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM php:8.4-fpm-alpine
+        RUN apk add --no-cache icu-dev libzip-dev linux-headers $$PHPIZE_DEPS \
+          && docker-php-ext-install pdo_mysql zip intl bcmath pcntl \
+          && pecl install redis && docker-php-ext-enable redis \
+          && apk del $$PHPIZE_DEPS
+        COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+        WORKDIR /var/www/html
+        COPY composer.json composer.lock ./
+        RUN composer install --no-dev --no-scripts --no-interaction --prefer-dist
+        COPY . .
+        RUN composer dump-autoload --optimize \
+          && chown -R www-data:www-data storage bootstrap/cache
+        USER www-data
+        EXPOSE 9000
+        CMD ["php-fpm"]
     environment: *laravel-env
     networks: [internal, shared]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/up >/dev/null"]
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
       interval: 30s
       timeout: 5s
       retries: 5
   worker:
     <<: *service-defaults
-    image: ${LOKEI_API_IMAGE:?required}
+    build: *lokei-api-build
     command: ["php", "artisan", "horizon"]
     environment: *laravel-env
     networks: [internal, shared]
   scheduler:
     <<: *service-defaults
-    image: ${LOKEI_API_IMAGE:?required}
+    build: *lokei-api-build
     command: ["php", "artisan", "schedule:work"]
     environment: *laravel-env
     networks: [internal, shared]
   relay:
     <<: *service-defaults
-    image: ${LOKEI_RELAY_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/lokei.git#main
+      dockerfile: docker/Dockerfile.relay
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     environment:
       NODE_ENV: production
-      API_URL: http://api:8000
+      RELAY_DOMAIN: ${RELAY_DOMAIN:?RELAY_DOMAIN is required}
+      RELAY_PORT: "8443"
+      CLOUD_API_URL: http://nginx/api/v1
+      RELAY_SERVICE_TOKEN: ${RELAY_SERVICE_TOKEN:?RELAY_SERVICE_TOKEN is required}
+    expose: ["8443"]
     networks: [internal]
+    depends_on:
+      nginx:
+        condition: service_started
   web:
     <<: *service-defaults
-    image: ${LOKEI_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/lokei.git#main
+      args:
+        NEXT_PUBLIC_BASE_URL: ${APP_URL:?required}
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM node:24-alpine
+        WORKDIR /app
+        COPY . .
+        ARG NEXT_PUBLIC_BASE_URL
+        ENV NEXT_PUBLIC_BASE_URL=$${NEXT_PUBLIC_BASE_URL}
+        RUN npm ci && npm run build -w packages/shared && npm run build -w apps/web
+        ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000
+        EXPOSE 3000
+        CMD ["npm", "run", "start", "-w", "apps/web"]
     expose: ["3000"]
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
-      API_URL: http://api:8000
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      LOKEI_API_URL: http://nginx/api/v1
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
+      NEXT_PUBLIC_BASE_URL: ${APP_URL:?APP_URL is required}
     networks: [internal]
+    depends_on:
+      nginx:
+        condition: service_started
+
+  nginx:
+    <<: *service-defaults
+    build:
+      context: https://github.com/ulpi-io/lokei.git#main
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+      dockerfile_inline: |
+        FROM nginx:1.27-alpine
+        COPY docker/api/nginx.conf /etc/nginx/conf.d/default.conf
+        COPY apps/api-v2/public /var/www/html/public
+        EXPOSE 80
+    expose: ["80"]
+    networks: [internal]
+    depends_on:
+      api:
+        condition: service_healthy
 
 networks:
   internal:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

@@ -10,7 +10,38 @@ x-service-defaults: &service-defaults
 services:
   api:
     <<: *service-defaults
-    image: ${AGENTSHQ_API_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/agentshq-api.git#main
+      dockerfile_inline: |
+        FROM node:22-alpine AS deps
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY package.json pnpm-lock.yaml ./
+        RUN pnpm install --frozen-lockfile
+
+        FROM node:22-alpine AS build
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY --from=deps /app/node_modules ./node_modules
+        COPY package.json pnpm-lock.yaml tsconfig.json ./
+        COPY src ./src
+        RUN pnpm build
+
+        FROM node:22-alpine AS runtime
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY package.json pnpm-lock.yaml ./
+        RUN pnpm install --frozen-lockfile --prod
+        COPY --from=build /app/dist ./dist
+        RUN addgroup --system --gid 1001 appgroup && adduser --system --uid 1001 appuser
+        USER appuser
+        EXPOSE 3001
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
+        CMD ["node", "dist/server.js"]
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    expose: ["3001"]
     environment:
       NODE_ENV: production
       PORT: "3001"
@@ -25,11 +56,43 @@ services:
       retries: 5
   web:
     <<: *service-defaults
-    image: ${AGENTSHQ_WEB_IMAGE:?required}
+    build:
+      context: https://github.com/ulpi-io/agentshq-web.git#main
+      args:
+        NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+      dockerfile_inline: |
+        FROM node:22-alpine AS deps
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY package.json pnpm-lock.yaml ./
+        RUN pnpm install --frozen-lockfile
+
+        FROM node:22-alpine AS build
+        WORKDIR /app
+        RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
+        COPY --from=deps /app/node_modules ./node_modules
+        COPY . .
+        ARG NEXT_PUBLIC_API_URL
+        ENV NEXT_PUBLIC_API_URL=$${NEXT_PUBLIC_API_URL}
+        RUN pnpm build
+
+        FROM node:22-alpine AS runtime
+        WORKDIR /app
+        ENV NODE_ENV=production
+        RUN addgroup --system --gid 1001 appgroup && adduser --system --uid 1001 appuser
+        COPY --from=build --chown=appuser:appgroup /app/.next/standalone ./
+        COPY --from=build --chown=appuser:appgroup /app/.next/static ./.next/static
+        USER appuser
+        EXPOSE 3000
+        HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+        CMD ["node", "server.js"]
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
     expose: ["3000"]
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
       API_URL: http://api:3001
     networks: [internal]
     depends_on:
@@ -41,3 +104,7 @@ networks:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
     external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

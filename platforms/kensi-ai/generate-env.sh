@@ -31,11 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.kensi-ai.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://kensi.ai
-KENSI_APP_IMAGE=example.invalid/ogg/kensi-ai-api:replace-with-pinned-image
-KENSI_NGINX_IMAGE=example.invalid/ogg/kensi-ai-nginx:replace-with-pinned-image
-KENSI_WORKER_IMAGE=example.invalid/ogg/kensi-ai-worker:replace-with-pinned-image
-KENSI_SCHEDULER_IMAGE=example.invalid/ogg/kensi-ai-scheduler:replace-with-pinned-image
-KENSI_WEB_IMAGE=example.invalid/ogg/kensi-ai-web:replace-with-pinned-image
+API_PUBLIC_URL=https://api.kensi.ai
+GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 MAIL_FROM_ADDRESS=no-reply@kensi.ai
 MAIL_FROM_NAME=Kensi AI

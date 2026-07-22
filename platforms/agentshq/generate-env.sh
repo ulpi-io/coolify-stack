@@ -31,8 +31,8 @@ tmp=$(mktemp "$(dirname "$output")/.agentshq.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://www.agentshq.sh
-AGENTSHQ_API_IMAGE=example.invalid/ogg/agentshq-api:replace-with-pinned-image
-AGENTSHQ_WEB_IMAGE=example.invalid/ogg/agentshq-web:replace-with-pinned-image
+API_PUBLIC_URL=https://api.agentshq.sh
+GIT_AUTH_TOKEN=
 JWT_SECRET=$(random_hex)
 EOF
 } > "$tmp"
