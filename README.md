@@ -58,7 +58,7 @@ Validate the complete environment-generation workflow without contacting Coolify
 scripts/create-resources.sh --check
 ```
 
-For a clean rebuild, enable the Coolify API in the UI with Allowed IPs set to exactly `127.0.0.1,::1`, then run:
+For a clean rebuild, set Coolify API Allowed IPs to exactly `127.0.0.1,::1`, then run:
 
 ```bash
 scripts/create-resources.sh \
@@ -67,7 +67,7 @@ scripts/create-resources.sh \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
-The command generates all secrets in a mode-`0600` temporary directory, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, recreates all 17 Git Compose resources, uploads their environments, applies service domains, verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. It deliberately creates the application before patching Compose service domains because Coolify 4.1.2 fails when `docker_compose_domains` is supplied to the creation endpoint.
+The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, recreates all 17 Git Compose resources, uploads their environments, applies service domains, verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. It deliberately creates the application before patching Compose service domains because Coolify 4.1.2 fails when `docker_compose_domains` is supplied to the creation endpoint.
 
 ## Build sources
 

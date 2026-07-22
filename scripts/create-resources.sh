@@ -20,6 +20,7 @@ legacy_token_name=codex-coolify-stack-bootstrap
 legacy_token_file=/tmp/codex-coolify-stack-token
 work_dir=""
 token_created=0
+api_managed=0
 
 usage() {
   cat >&2 <<'EOF'
@@ -37,8 +38,9 @@ Options:
   --operator-email E  Nudgra operator email allowlist value.
   --repository URL    Git repository containing these Compose files.
 
-Before --apply, enable the Coolify API and restrict Allowed IPs to exactly:
+Before --apply, restrict Coolify API Allowed IPs to exactly:
 127.0.0.1,::1
+The script opens the API for localhost only and closes it on exit.
 EOF
 }
 
@@ -91,12 +93,17 @@ stacks=(
 cleanup() {
   local exit_code=$?
   trap - EXIT INT TERM
-  if [[ $token_created -eq 1 ]]; then
+  if [[ $api_managed -eq 1 ]]; then
     # Always close the temporary API window, even when provisioning fails.
     # The expanded values are fixed local configuration, not remote output.
     # shellcheck disable=SC2029
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify sh -lc 'api_token=\$(cat $token_file 2>/dev/null || true); if [ -n \"\$api_token\" ]; then curl -sS -o /dev/null -H \"Authorization: Bearer \$api_token\" http://127.0.0.1:8080/api/v1/disable || true; fi'" >/dev/null 2>&1 || true
+    # If no token was created, still close the API through Coolify's application model.
+    if [[ $token_created -eq 0 ]]; then
+      ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+        "docker exec coolify php artisan tinker --execute='\$settings=App\\Models\\InstanceSettings::get(); \$settings->is_api_enabled=false; \$settings->save();'" >/dev/null 2>&1 || true
+    fi
     # shellcheck disable=SC2029
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify php artisan tinker --execute='\$user=App\\Models\\User::findOrFail(0); \$user->tokens()->whereIn(\"name\",[\"$token_name\",\"$legacy_token_name\"])->delete();'" >/dev/null 2>&1 || true
@@ -150,8 +157,13 @@ ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" true
 
 api_state=$(ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
   "docker exec coolify php artisan tinker --execute='print(json_encode([\"enabled\"=>App\\Models\\InstanceSettings::get()->is_api_enabled,\"allowed\"=>App\\Models\\InstanceSettings::get()->allowed_ips]));'")
-[[ $(jq -r '.enabled' <<<"$api_state") == true ]] || die "Coolify API is disabled; enable it in the UI first"
 [[ $(jq -r '.allowed' <<<"$api_state") == '127.0.0.1,::1' ]] || die "Coolify Allowed IPs must be exactly 127.0.0.1,::1"
+if [[ $(jq -r '.enabled' <<<"$api_state") != true ]]; then
+  ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "docker exec coolify php artisan tinker --execute='\$settings=App\\Models\\InstanceSettings::get(); \$settings->is_api_enabled=true; \$settings->save();'" >/dev/null
+  echo "Enabled the localhost-only Coolify API for this run"
+fi
+api_managed=1
 
 # The expanded values are fixed local configuration, not remote output.
 # shellcheck disable=SC2029
