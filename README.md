@@ -67,7 +67,7 @@ scripts/create-resources.sh \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
-The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, recreates all 17 Git Compose resources, uploads their environments, applies service domains, verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. It deliberately creates the application before patching Compose service domains because Coolify 4.1.2 fails when `docker_compose_domains` is supplied to the creation endpoint.
+The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, and recreates the stack sequentially. For each resource it waits for Coolify's Compose parser to finish extracting variables, replaces those rows with the generated values, and then applies service domains before moving to the next project. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction race.
 
 ## Build sources
 
