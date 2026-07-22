@@ -149,7 +149,7 @@ for resource_spec in "${resource_specs[@]}"; do
   application_uuid=$(jq -r --arg name "$resource_name" '.[] | select(.name == $name) | .uuid' <<<"$applications_json")
 
   echo "Deploying $resource_name..."
-  deployment_json=$(api POST "applications/$application_uuid/start?force=true&instant_deploy=true") || die "could not queue $resource_name"
+  deployment_json=$(api POST "applications/$application_uuid/start?instant_deploy=true") || die "could not queue $resource_name"
   deployment_uuid=$(jq -er '.deployment_uuid' <<<"$deployment_json") || die "Coolify returned no deployment UUID for $resource_name"
   active_deployment_uuid=$deployment_uuid
   started_at=$SECONDS
