@@ -314,7 +314,7 @@ for stack in "${stacks[@]}"; do
   duplicate_count=$(jq '[group_by([.is_preview, .key])[] | select(length > 1)] | length' <<<"$uploaded_envs_json")
   placeholder_count=$(jq '[.[] | select((.value // "") == "required" or ((.value // "") | endswith(" is required")))] | length' <<<"$uploaded_envs_json")
   expected_signature=$(awk -F= '/^[[:space:]]*#/ || /^[[:space:]]*$/ {next} {print $1}' "$env_file" | sort | paste -sd, -)
-  actual_signature=$(jq -r '[.[] | select(.is_preview == false) | .key] | sort | join(",")' <<<"$uploaded_envs_json")
+  actual_signature=$(jq -r '[.[] | select(.is_preview == false and (.key | startswith("SERVICE_") | not)) | .key] | sort | join(",")' <<<"$uploaded_envs_json")
   [[ "$duplicate_count" == 0 ]] || die "$slug environment contains duplicate keys after upload"
   [[ "$placeholder_count" == 0 ]] || die "$slug environment still contains required placeholders after upload"
   [[ "$actual_signature" == "$expected_signature" ]] || die "$slug environment keys do not exactly match its generated env file"
