@@ -1,0 +1,89 @@
+name: plane
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-plane-env: &plane-env
+  WEB_URL: ${APP_URL:?required}
+  CORS_ALLOWED_ORIGINS: ${APP_URL:?required}
+  DATABASE_URL: postgresql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+  REDIS_URL: redis://${CACHE_USERNAME:?required}:${CACHE_PASSWORD:?required}@${CACHE_HOST:?required}:${CACHE_PORT:?required}/0
+  AMQP_URL: amqp://${RABBITMQ_USERNAME:?required}:${RABBITMQ_PASSWORD:?required}@${RABBITMQ_HOST:?required}:${RABBITMQ_PORT:?required}/${RABBITMQ_VHOST:?required}
+  SECRET_KEY: ${SECRET_KEY:?required}
+  LIVE_SERVER_SECRET_KEY: ${LIVE_SERVER_SECRET_KEY:?required}
+  USE_MINIO: "1"
+  AWS_REGION: ${S3_REGION:?required}
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?required}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?required}
+  AWS_S3_ENDPOINT_URL: ${S3_ENDPOINT:?required}
+  AWS_S3_BUCKET_NAME: ${S3_BUCKET:?required}
+services:
+  web:
+    <<: *service-defaults
+    image: makeplane/plane-frontend:${PLANE_RELEASE:?required}
+    networks: [internal]
+  space:
+    <<: *service-defaults
+    image: makeplane/plane-space:${PLANE_RELEASE:?required}
+    networks: [internal]
+  admin:
+    <<: *service-defaults
+    image: makeplane/plane-admin:${PLANE_RELEASE:?required}
+    networks: [internal]
+  live:
+    <<: *service-defaults
+    image: makeplane/plane-live:${PLANE_RELEASE:?required}
+    environment:
+      <<: *plane-env
+      API_BASE_URL: http://api:8000
+    networks: [internal, shared]
+  api:
+    <<: *service-defaults
+    image: makeplane/plane-backend:${PLANE_RELEASE:?required}
+    command: ./bin/docker-entrypoint-api.sh
+    environment: *plane-env
+    networks: [internal, shared]
+  worker:
+    <<: *service-defaults
+    image: makeplane/plane-backend:${PLANE_RELEASE:?required}
+    command: ./bin/docker-entrypoint-worker.sh
+    environment: *plane-env
+    networks: [internal, shared]
+  beat-worker:
+    <<: *service-defaults
+    image: makeplane/plane-backend:${PLANE_RELEASE:?required}
+    command: ./bin/docker-entrypoint-beat.sh
+    environment: *plane-env
+    networks: [internal, shared]
+  migrator:
+    image: makeplane/plane-backend:${PLANE_RELEASE:?required}
+    restart: "no"
+    command: ./bin/docker-entrypoint-migrator.sh
+    environment: *plane-env
+    networks: [internal, shared]
+  proxy:
+    <<: *service-defaults
+    image: makeplane/plane-proxy:${PLANE_RELEASE:?required}
+    environment:
+      APP_DOMAIN: ${APP_HOST:?required}
+      FILE_SIZE_LIMIT: "5242880"
+      BUCKET_NAME: ${S3_BUCKET:?required}
+      SITE_ADDRESS: ":80"
+    expose: ["80"]
+    networks: [internal]
+    depends_on:
+      - web
+      - api
+      - space
+      - admin
+      - live
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

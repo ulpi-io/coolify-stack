@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "browse": {
+      "source": "ulpi-io/skills",
+      "sourceType": "github",
+      "skillPath": "browse/SKILL.md",
+      "computedHash": "bbc8612549223fac720e260f8ee3216ac8a0bdaaab0ffb7728106a9abb6edcb3"
+    },
+    "plan-founder-review": {
+      "source": "ulpi-io/skills",
+      "sourceType": "github",
+      "skillPath": "plan-founder-review/SKILL.md",
+      "computedHash": "988deba2d7218c563805f815d96592edc31175ef1c9bc8b1a37ebb33a55ac580"
+    },
+    "plan-to-task-list-with-dag": {
+      "source": "ulpi-io/skills",
+      "sourceType": "github",
+      "skillPath": "plan-to-task-list-with-dag/SKILL.md",
+      "computedHash": "1afbb081c56871ca7227c404839464e398723ba04485f0a6a40ea159d1595a67"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+name: twenty
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-twenty-env: &twenty-env
+  SERVER_URL: ${APP_URL:?required}
+  FRONT_BASE_URL: ${APP_URL:?required}
+  APP_SECRET: ${APP_SECRET:?required}
+  ENABLE_DB_MIGRATIONS: "true"
+  CACHE_STORAGE_TYPE: redis
+  REDIS_URL: redis://${CACHE_USERNAME:?required}:${CACHE_PASSWORD:?required}@${CACHE_HOST:?required}:${CACHE_PORT:?required}/0
+  POSTGRES_ADMIN_PASSWORD: ${DB_PASSWORD:?required}
+  PG_DATABASE_URL: postgres://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+  STORAGE_TYPE: s3
+  STORAGE_S3_REGION: ${S3_REGION:?required}
+  STORAGE_S3_NAME: ${S3_BUCKET:?required}
+  STORAGE_S3_ENDPOINT: ${S3_ENDPOINT:?required}
+  STORAGE_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?required}
+  STORAGE_S3_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?required}
+  MESSAGE_QUEUE_TYPE: pg-boss
+  EMAIL_DRIVER: smtp
+  EMAIL_SMTP_HOST: ${SMTP_HOST:?required}
+  EMAIL_SMTP_PORT: ${SMTP_PORT:?required}
+  EMAIL_SMTP_USER: ""
+  EMAIL_SMTP_PASSWORD: ""
+  EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:?required}
+  EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:?required}
+  EMAIL_SYSTEM_ADDRESS: ${EMAIL_SYSTEM_ADDRESS:?required}
+  TELEMETRY_ENABLED: "false"
+services:
+  twenty:
+    <<: *service-defaults
+    image: ${TWENTY_IMAGE:?required}
+    expose: ["3000"]
+    environment: *twenty-env
+    volumes:
+      - twenty-local-storage:/app/packages/twenty-server/.local-storage
+    networks: [internal, shared]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+  worker:
+    <<: *service-defaults
+    image: ${TWENTY_IMAGE:?required}
+    command: ["yarn", "worker:prod"]
+    environment:
+      <<: *twenty-env
+      DISABLE_DB_MIGRATIONS: "true"
+      DISABLE_CRON_JOBS_REGISTRATION: "true"
+    volumes:
+      - twenty-local-storage:/app/packages/twenty-server/.local-storage
+    networks: [internal, shared]
+volumes:
+  twenty-local-storage:
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

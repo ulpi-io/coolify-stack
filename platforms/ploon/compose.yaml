@@ -1,0 +1,29 @@
+name: ploon
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  web:
+    <<: *service-defaults
+    image: ${PLOON_WEB_IMAGE:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_APP_URL: ${APP_URL:?required}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "metadata": {
+    "name": "coolify-phase-1-research-foundation",
+    "title": "Phase 1: Shared Infrastructure Folder",
+    "sourceRequest": "coolify_deployment_system_agent_prompt_v3.md",
+    "inventory": "REPOSITORIES.md",
+    "planningMode": "EXPANSION",
+    "defaultReview": "codex",
+    "deliveryScope": "compose artifacts only",
+    "environmentScope": "production only",
+    "generatedAt": "2026-07-22T07:31:45.392Z",
+    "jsonIsSourceOfTruth": true
+  },
+  "overview": "The complete shared infrastructure Compose and environment generator pass local validation.",
+  "scopeChallenge": {
+    "selectedMode": "EXPANSION",
+    "reviewDefault": "codex",
+    "decision": "The scope is the complete stack, not a deployment system: 17 Compose files, 17 environment generators, one static validator, and Coolify handoff documentation."
+  },
+  "prerequisites": [
+    "REPOSITORIES.md remains the authoritative 16-platform/domain inventory.",
+    "SHARED_INFRASTRUCTURE.md remains the authoritative shared-service, consumer, database-engine, and isolation map.",
+    "The implementation agent must inspect the pinned repository or recipe evidence before writing each platform process command or image reference.",
+    "Docker Compose v2, shellcheck, openssl, and standard POSIX tools are available for local validation."
+  ],
+  "nonGoals": [
+    "No Coolify API calls, UI automation, server mutation, DNS change, resource creation, or deployment execution.",
+    "No custom Python deployment control plane, provider framework, CI rollout system, branch-protection work, or repository source PRs.",
+    "No application-data migration, legacy-volume reuse, database-engine conversion, or production cutover.",
+    "No staging environment and no duplicate shared backing services inside platform Compose files."
+  ],
+  "contracts": [
+    "Folder contract: infrastructure/compose.yaml plus infrastructure/generate-env.sh, and platforms/<slug>/compose.yaml plus platforms/<slug>/generate-env.sh for all 16 slugs.",
+    "The infrastructure generator creates shared service credentials and matching per-platform shared-env fragments; each platform generator consumes only its own fragment and produces its local .env.",
+    "Every generator refuses overwrite without --force, creates mode-0600 files, uses cryptographic randomness, prints no secrets, and is safe to rerun.",
+    "Platform Compose files use the Coolify external shared network and environment-provided shared endpoints; depends_on is limited to services in the same file.",
+    "All images are immutable or exactly versioned, all application services have health checks where supported, all required variables fail closed, and no shared backing port is publicly published."
+  ],
+  "existingCodeLeverage": [
+    "REPOSITORIES.md supplies all platform names, component groupings, and domains.",
+    "SHARED_INFRASTRUCTURE.md supplies all shared-service consumers and isolation decisions.",
+    "N8N_CURRENT_RECIPE.md and TWENTY_CURRENT_RECIPE.md supply their complete current multi-process Compose baselines.",
+    "Immutable source-tree evidence already captured for the first-party and third-party repositories supplies real Dockerfiles, commands, health routes, and environment names."
+  ],
+  "sharedInfrastructureMap": {
+    "definition": "Coolify deploys these artifacts later but is not part of the Compose stack.",
+    "platformProvided": [
+      {
+        "component": "Coolify and Traefik",
+        "responsibility": "External deployment, private networking, domains, and TLS; untouched by this implementation plan."
+      }
+    ],
+    "sharedServices": [
+      {
+        "component": "MySQL 8.4 LTS",
+        "responsibility": "Fresh databases and users for MySQL platforms"
+      },
+      {
+        "component": "PostgreSQL 16",
+        "responsibility": "Fresh databases and roles for PostgreSQL platforms and Temporal persistence"
+      },
+      {
+        "component": "Valkey 8 cache",
+        "responsibility": "Disposable caches, sessions, limits, and locks"
+      },
+      {
+        "component": "Valkey 8 queue",
+        "responsibility": "Durable Redis-compatible queues with AOF everysec and noeviction"
+      },
+      {
+        "component": "MinIO",
+        "responsibility": "Shared bucket-isolated object storage"
+      },
+      {
+        "component": "Qdrant",
+        "responsibility": "Shared collection-isolated vector storage"
+      },
+      {
+        "component": "RabbitMQ",
+        "responsibility": "Shared vhost-isolated AMQP messaging"
+      },
+      {
+        "component": "Elasticsearch",
+        "responsibility": "Shared index/role-isolated search and Temporal visibility"
+      },
+      {
+        "component": "Temporal",
+        "responsibility": "Shared namespace/task-queue-isolated durable workflows"
+      },
+      {
+        "component": "Mailpit",
+        "responsibility": "Private capture-only SMTP with no relay"
+      },
+      {
+        "component": "Monitoring",
+        "responsibility": "A pinned resource-bounded monitoring and alerting implementation selected in the Compose task"
+      },
+      {
+        "component": "Backup",
+        "responsibility": "A pinned off-server backup implementation selected in the Compose task"
+      }
+    ],
+    "perApplicationIsolation": [
+      "Database and restricted user/role",
+      "Valkey ACL user and prefixes",
+      "MinIO bucket and service account",
+      "RabbitMQ vhost and user",
+      "Elasticsearch index prefix and role",
+      "Temporal namespace and task queues",
+      "Qdrant collection ownership"
+    ],
+    "dedicatedFallbacks": [
+      "A platform Compose may include a dedicated dependency only when SHARED_INFRASTRUCTURE.md explicitly records a proven exception."
+    ]
+  },
+  "architecture": {
+    "diagram": "flowchart LR\n      Infra[infrastructure/ compose plus generator] --> Network[Coolify external shared network]\n      Network --> P1[platforms/kensi-ai]\n      Network --> P2[platforms/agentshq]\n      Network --> PN[14 other platform folders]\n      Generator[Infrastructure generated shared fragments] --> G1[Each platform generate-env]\n      G1 --> P1\n      G1 --> P2\n      G1 --> PN\n      Infra --> Validate[Local validate-all]\n      P1 --> Validate\n      P2 --> Validate\n      PN --> Validate\n      Validate --> Docs[Manual Coolify import handoff]",
+    "taskGroups": [
+      {
+        "component": "shared-infrastructure-folder",
+        "tasks": [
+          "TASK-001"
+        ]
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "title": "Create the complete shared infrastructure Compose stack",
+      "description": "Create the single infrastructure folder containing the complete reusable backing-service stack and the generator that produces infrastructure plus per-platform shared credentials. Coolify will deploy this Compose later; this task performs no deployment.",
+      "priority": "P0",
+      "type": "infra",
+      "effort": "XL",
+      "agent": "devops-docker-senior-engineer",
+      "dependsOn": [],
+      "labels": [],
+      "acceptanceCriteria": [
+        "infrastructure/compose.yaml defines pinned, health-checked, resource-bounded MySQL 8.4, PostgreSQL 16, cache Valkey 8, queue Valkey 8, MinIO, Qdrant, RabbitMQ, Elasticsearch, Temporal, Mailpit, the selected monitoring implementation, the selected off-server backup implementation, and idempotent bootstrap containers for all required tenant resources.",
+        "No backing-service, administration, database, queue, search, vector, object-console, or Mailpit SMTP port is publicly published; durable services have named volumes and every application receives its native isolation boundary.",
+        "infrastructure/generate-env.sh supports --output-dir <dir> [--force], creates a mode-0600 infrastructure env plus exactly 16 mode-0600 platform shared-env fragments, uses cryptographic random secrets, prints no secret values, and refuses to overwrite existing output without --force."
+      ],
+      "filesToModify": [],
+      "filesToCreate": [
+        "infrastructure/compose.yaml",
+        "infrastructure/generate-env.sh"
+      ],
+      "writeScope": [
+        "infrastructure/compose.yaml",
+        "infrastructure/generate-env.sh"
+      ],
+      "validateCommand": "shellcheck infrastructure/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && test \"$(find \"$tmp_dir/platforms\" -type f -name '*.shared.env' | wc -l | tr -d ' ')\" = 16 && docker compose --env-file \"$tmp_dir/infrastructure.env\" -f infrastructure/compose.yaml config >/dev/null",
+      "review": "codex",
+      "phase": "shared-infrastructure",
+      "externalDependsOn": []
+    }
+  ],
+  "dependencyMap": {
+    "TASK-001": []
+  },
+  "failureModes": [
+    "Missing or conflicting source evidence blocks only the affected platform Compose task; it is never replaced by a guessed command or image.",
+    "A generator missing its matching shared fragment, required input, openssl, or safe output permissions exits non-zero without creating a partial environment.",
+    "An existing env file is preserved unless --force is explicit; secrets are never printed or committed.",
+    "Any unresolved Compose variable, latest tag, public backing port, duplicate shared service, or cross-stack depends_on fails local validation.",
+    "The repository never interprets successful static validation as a successful deployment."
+  ],
+  "shipCut": {
+    "milestone1": "The infrastructure folder and all 16 platform folders each contain a statically valid compose.yaml and generate-env.sh.",
+    "milestone2": "The 17-folder validator passes and the manual Coolify import guide covers every platform and domain without executing deployment."
+  },
+  "taskRiskMap": [
+    {
+      "task": "TASK-001",
+      "category": "compose-artifact",
+      "containment": "Fail local slice validation and change only the owned folder/files; perform no deployment.",
+      "recoveryEvidence": "shellcheck infrastructure/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && test \"$(find \"$tmp_dir/platforms\" -type f -name '*.shared.env' | wc -l | tr -d ' ')\" = 16 && docker compose --env-file \"$tmp_dir/infrastructure.env\" -f infrastructure/compose.yaml config >/dev/null"
+    }
+  ],
+  "testCoverageMap": [
+    {
+      "task": "TASK-001",
+      "testType": "folder-scoped Compose and shell validation",
+      "validateCommand": "shellcheck infrastructure/generate-env.sh && tmp_dir=$(mktemp -d) && infrastructure/generate-env.sh --output-dir \"$tmp_dir\" && test \"$(find \"$tmp_dir/platforms\" -type f -name '*.shared.env' | wc -l | tr -d ' ')\" = 16 && docker compose --env-file \"$tmp_dir/infrastructure.env\" -f infrastructure/compose.yaml config >/dev/null"
+    }
+  ],
+  "executionSummary": {
+    "taskCount": 1,
+    "layerCount": 1,
+    "layers": [
+      [
+        "TASK-001"
+      ]
+    ],
+    "criticalPath": [
+      "TASK-001"
+    ],
+    "externalPrerequisites": {},
+    "milestoneOneTask": null,
+    "finalTask": null
+  }
+}

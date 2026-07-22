@@ -1,0 +1,94 @@
+name: open-kudos
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-laravel-env: &laravel-env
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:?APP_URL is required}
+  APP_KEY: ${APP_KEY:?APP_KEY is required}
+  DB_CONNECTION: mysql
+  DB_HOST: ${DB_HOST:?DB_HOST is required}
+  DB_PORT: ${DB_PORT:?DB_PORT is required}
+  DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+  DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required}
+  DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: ${QUEUE_HOST:?QUEUE_HOST is required}
+  REDIS_PORT: ${QUEUE_PORT:?QUEUE_PORT is required}
+  REDIS_USERNAME: ${QUEUE_USERNAME:?QUEUE_USERNAME is required}
+  REDIS_PASSWORD: ${QUEUE_PASSWORD:?QUEUE_PASSWORD is required}
+  REDIS_PREFIX: ${QUEUE_PREFIX:?QUEUE_PREFIX is required}
+  CACHE_STORE: redis
+  QUEUE_CONNECTION: redis
+  MAIL_MAILER: smtp
+  MAIL_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+  MAIL_PORT: ${SMTP_PORT:?SMTP_PORT is required}
+  MAIL_ENCRYPTION: "null"
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?MAIL_FROM_ADDRESS is required}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:?MAIL_FROM_NAME is required}
+  LOG_CHANNEL: stderr
+
+x-api-image: &api-image
+  image: ${OPEN_KUDOS_APP_IMAGE:?required}
+  environment: *laravel-env
+  networks: [internal, shared]
+services:
+  migrate:
+    <<: [*service-defaults, *api-image]
+    restart: "no"
+    entrypoint: []
+    command: ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache"]
+  api:
+    <<: [*service-defaults, *api-image]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 9000) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+  nginx:
+    <<: *service-defaults
+    image: ${OPEN_KUDOS_NGINX_IMAGE:?required}
+    networks: [internal]
+    depends_on:
+      api:
+        condition: service_healthy
+  worker:
+    <<: *service-defaults
+    image: ${OPEN_KUDOS_WORKER_IMAGE:?required}
+    environment: *laravel-env
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  scheduler:
+    <<: *service-defaults
+    image: ${OPEN_KUDOS_SCHEDULER_IMAGE:?required}
+    environment: *laravel-env
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  web:
+    <<: *service-defaults
+    image: ${OPEN_KUDOS_WEB_IMAGE:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      API_URL: http://nginx
+    networks: [internal]
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true

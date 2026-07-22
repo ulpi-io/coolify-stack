@@ -1,0 +1,43 @@
+name: agentshq
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  api:
+    <<: *service-defaults
+    image: ${AGENTSHQ_API_IMAGE:?required}
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DATABASE_URL: mysql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+      JWT_SECRET: ${JWT_SECRET:?required}
+      APP_URL: ${APP_URL:?required}
+    networks: [internal, shared]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/health >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+  web:
+    <<: *service-defaults
+    image: ${AGENTSHQ_WEB_IMAGE:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${APP_URL:?required}/api
+      API_URL: http://api:3001
+    networks: [internal]
+    depends_on:
+      api:
+        condition: service_healthy
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
+    external: true
