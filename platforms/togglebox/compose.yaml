@@ -33,10 +33,14 @@ services:
         RUN corepack enable && corepack prepare pnpm@8.12.0 --activate
         COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json ./
         COPY packages/core/package.json ./packages/core/
+        COPY packages/configs/package.json ./packages/configs/
         COPY packages/database/package.json ./packages/database/
         COPY packages/cache/package.json ./packages/cache/
         COPY packages/auth/package.json ./packages/auth/
         COPY packages/shared/package.json ./packages/shared/
+        COPY packages/experiments/package.json ./packages/experiments/
+        COPY packages/flags/package.json ./packages/flags/
+        COPY packages/stats/package.json ./packages/stats/
         COPY apps/api/package.json ./apps/api/
         RUN pnpm install --prod --frozen-lockfile
         # packages/auth imports Express at runtime but declares it as a dev-only
@@ -44,10 +48,14 @@ services:
         RUN mkdir -p packages/auth/node_modules \
             && ln -s ../../../apps/api/node_modules/express packages/auth/node_modules/express
         COPY --from=builder /app/packages/core/dist ./packages/core/dist
+        COPY --from=builder /app/packages/configs/dist ./packages/configs/dist
         COPY --from=builder /app/packages/database/dist ./packages/database/dist
         COPY --from=builder /app/packages/cache/dist ./packages/cache/dist
         COPY --from=builder /app/packages/auth/dist ./packages/auth/dist
         COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+        COPY --from=builder /app/packages/experiments/dist ./packages/experiments/dist
+        COPY --from=builder /app/packages/flags/dist ./packages/flags/dist
+        COPY --from=builder /app/packages/stats/dist ./packages/stats/dist
         COPY --from=builder /app/packages/node_modules/.prisma ./packages/node_modules/.prisma
         COPY --from=builder /app/apps/api/dist ./apps/api/dist
         RUN chown -R nodejs:nodejs /app
