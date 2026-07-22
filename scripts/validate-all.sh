@@ -21,14 +21,36 @@ for slug in "${platforms[@]}"; do
   }
 done
 
+for generator in platforms/*/generate-env.sh; do
+  app_url=$(grep '^APP_URL=' "$generator" | head -1 | cut -d= -f2-)
+  [[ "$app_url" == https://www.* ]] || {
+    echo "$generator must use a canonical https://www.* APP_URL" >&2
+    exit 1
+  }
+  api_url=$(grep '^API_PUBLIC_URL=' "$generator" | head -1 | cut -d= -f2- || true)
+  [[ -z "$api_url" || "$api_url" == https://api.* ]] || {
+    echo "$generator must use a canonical https://api.* API_PUBLIC_URL" >&2
+    exit 1
+  }
+done
+
+grep -Fq '{"name":"dashboard","domain":"https://www.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}' scripts/create-resources.sh || {
+  echo "Clavinci web/API domain mapping is missing" >&2
+  exit 1
+}
+grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","domain":"https://api.albert.con.fyi"}' scripts/create-resources.sh || {
+  echo "Albert web/API domain mapping is missing" >&2
+  exit 1
+}
+
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
 [[ "$compose_count" = 17 ]] || { echo "Expected 17 Compose files, found $compose_count" >&2; exit 1; }
 [[ "$generator_count" = 17 ]] || { echo "Expected 17 env generators, found $generator_count" >&2; exit 1; }
 
-bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh
+bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck infrastructure/generate-env.sh platforms/*/generate-env.sh
+  shellcheck infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
 else
   echo "WARNING: shellcheck is not installed; skipped shell lint" >&2
 fi

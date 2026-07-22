@@ -67,6 +67,7 @@ services:
       secrets:
         - source: git_auth_token
           target: GIT_AUTH_TOKEN
+    expose: ["80"]
     networks: [internal]
     depends_on:
       app:

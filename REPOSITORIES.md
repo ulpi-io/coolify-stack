@@ -12,22 +12,22 @@ Environment scope for every deployment unit: **production only**.
 
 | Deployment unit | Repositories/components | Production domain | Source |
 | --- | --- | --- | --- |
-| Kensi AI | `kensi-ai-api`, `kensi-ai-web` | `https://kensi.ai` | Supplied by Ciprian |
+| Kensi AI | `kensi-ai-api`, `kensi-ai-web` | `https://www.kensi.ai` | Supplied by Ciprian |
 | AgentsHQ | `agentshq-api`, `agentshq-web` | `https://www.agentshq.sh/` | Supplied by Ciprian |
 | OpenKudos | `open-kudos-api`, `open-kudos-web` | `https://www.teamtoast.ai/` | Supplied by Ciprian |
-| Insight | `insight` | `https://clavinci.com` | Supplied by Ciprian |
-| Togglebox | `togglebox` | `https://togglebox.dev` | Supplied by Ciprian |
+| Insight | `insight` | `https://www.clavinci.com`, `https://api.clavinci.com` | Supplied by Ciprian |
+| Togglebox | `togglebox` | `https://www.togglebox.dev` | Supplied by Ciprian |
 | OpenPay | `OpenPayApi`, `OpenPayWeb` | `https://www.openpay.fyi/` | Supplied by Ciprian |
-| Ploon | `ploon-web` | `https://ploon.ai` | Supplied by Ciprian |
-| Open Growth Group website | `open-growth-group-website` | `https://opengrowthgroup.co` | Supplied by Ciprian |
-| Lokei | `lokei` | `https://lokei.dev` | Supplied by Ciprian |
-| Albert | `albert` | `https://albert.con.fyi` | Supplied by Ciprian |
-| Record Cloud | `record-cloud` | `https://record.con.fyi` | Supplied by Ciprian |
-| Plane | `makeplane/plane` | `https://pm.con.fyi` | Live Coolify Traefik labels, verified 2026-07-22 |
-| Postiz | `ulpi-io/postiz-docker-compose` | `https://post.con.fyi` | Live Coolify Traefik labels, verified 2026-07-22 |
-| Nudgra OSS | `MaikoCode/nudgra-oss` | `https://ig.con.fyi` | Live Coolify Traefik labels, verified 2026-07-22 |
-| n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://workflow.con.fyi` | Live Coolify Traefik labels, verified 2026-07-22 |
-| Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Live Coolify Traefik labels, verified 2026-07-22 |
+| Ploon | `ploon-web` | `https://www.ploon.ai` | Supplied by Ciprian |
+| Open Growth Group website | `open-growth-group-website` | `https://www.opengrowthgroup.co` | Supplied by Ciprian |
+| Lokei | `lokei` | `https://www.lokei.dev` | Supplied by Ciprian |
+| Albert | `albert` | `https://www.albert.con.fyi`, `https://api.albert.con.fyi` | Supplied by Ciprian |
+| Record Cloud | `record-cloud` | `https://www.record.con.fyi` | Supplied by Ciprian |
+| Plane | `makeplane/plane` | `https://www.pm.con.fyi` | Coolify route |
+| Postiz | `ulpi-io/postiz-docker-compose` | `https://www.post.con.fyi` | Coolify route |
+| Nudgra OSS | `MaikoCode/nudgra-oss` | `https://www.ig.con.fyi` | Coolify route |
+| n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://www.workflow.con.fyi` | Coolify route |
+| Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://www.crm.con.fyi` | Coolify route |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 

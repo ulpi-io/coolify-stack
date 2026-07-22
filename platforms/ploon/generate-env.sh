@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.ploon.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://ploon.ai
+APP_URL=https://www.ploon.ai
 GIT_AUTH_TOKEN=
 EOF
 } > "$tmp"

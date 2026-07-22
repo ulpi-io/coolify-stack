@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.nudgra-oss.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://ig.con.fyi
+APP_URL=https://www.ig.con.fyi
 BETTER_AUTH_SECRET=$(random_hex)
 TOKEN_ENCRYPTION_KEY=$(random_hex)
 OPERATOR_EMAIL_ALLOWLIST=replace-with-operator-email

@@ -30,10 +30,10 @@ tmp=$(mktemp "$(dirname "$output")/.n8n.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://workflow.con.fyi
+APP_URL=https://www.workflow.con.fyi
 N8N_IMAGE=n8nio/n8n:2.10.4
 N8N_RUNNERS_IMAGE=n8nio/runners:2.10.4
-APP_HOST=workflow.con.fyi
+APP_HOST=www.workflow.con.fyi
 N8N_ENCRYPTION_KEY=$(random_hex)
 N8N_RUNNERS_AUTH_TOKEN=$(random_hex)
 EOF
