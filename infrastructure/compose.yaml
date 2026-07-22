@@ -418,7 +418,7 @@ services:
       ES_VERSION: v7
       TEMPORAL_NAMESPACE: postiz
     healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
       interval: 15s
       timeout: 10s
       retries: 20
