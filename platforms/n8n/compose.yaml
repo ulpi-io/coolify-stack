@@ -38,6 +38,8 @@ x-n8n-env: &n8n-env
 services:
   n8n:
     <<: *service-defaults
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     image: ${N8N_IMAGE:?required}
     expose: ["5678"]
     environment:
