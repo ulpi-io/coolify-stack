@@ -195,6 +195,16 @@ api() {
   fi
 }
 
+delete_application_envs() {
+  local application_uuid=$1
+  [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "unsafe application UUID"
+  # Delete through Coolify's API in one SSH session. The parser can emit the
+  # same key more than once, so replacing rows individually is not sufficient.
+  # shellcheck disable=SC2029
+  ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "docker exec -i coolify sh -lc 'api_token=\$(cat $token_file); while IFS= read -r env_uuid; do [ -n \"\$env_uuid\" ] || continue; case \"\$env_uuid\" in *[!A-Za-z0-9]*) exit 2;; esac; curl --fail-with-body -sS -o /dev/null -X DELETE -H \"Authorization: Bearer \$api_token\" \"http://127.0.0.1:8080/api/v1/applications/$application_uuid/envs/\$env_uuid\"; done'"
+}
+
 projects_json=$(api GET projects </dev/null) || die "could not list Coolify projects"
 for stack in "${stacks[@]}"; do
   IFS='|' read -r _ project_name _ _ _ _ <<<"$stack"
@@ -274,6 +284,20 @@ for stack in "${stacks[@]}"; do
   done
   [[ $parsed -eq 1 ]] || die "Coolify did not finish parsing $slug Compose environment"
 
+  if [[ "$domains_json" != '[]' ]]; then
+    domain_payload=$(jq -n --argjson domains "$domains_json" '{docker_compose_domains:$domains}')
+    if ! printf '%s' "$domain_payload" | api PATCH "applications/$application_uuid" >/dev/null; then
+      die "could not set domains for $slug"
+    fi
+  fi
+
+  # Discard parser-generated defaults/placeholders, including duplicate rows,
+  # then create one authoritative generated row per key.
+  envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not inspect $slug environment"
+  if ! jq -r '.[].uuid' <<<"$envs_json" | delete_application_envs "$application_uuid"; then
+    die "could not clear parser-generated environment for $slug"
+  fi
+
   env_file=$work_dir/infrastructure.env
   [[ "$slug" == infrastructure ]] || env_file=$work_dir/$slug.env
   env_payload=$(jq -Rn \
@@ -287,15 +311,11 @@ for stack in "${stacks[@]}"; do
   uploaded_envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not verify $slug environment"
   duplicate_count=$(jq '[group_by(.key)[] | select(length > 1)] | length' <<<"$uploaded_envs_json")
   placeholder_count=$(jq '[.[] | select((.value // "") == "required" or ((.value // "") | endswith(" is required")))] | length' <<<"$uploaded_envs_json")
+  expected_signature=$(awk -F= '/^[[:space:]]*#/ || /^[[:space:]]*$/ {next} {print $1}' "$env_file" | sort | paste -sd, -)
+  actual_signature=$(jq -r '[.[].key] | sort | join(",")' <<<"$uploaded_envs_json")
   [[ "$duplicate_count" == 0 ]] || die "$slug environment contains duplicate keys after upload"
   [[ "$placeholder_count" == 0 ]] || die "$slug environment still contains required placeholders after upload"
-
-  if [[ "$domains_json" != '[]' ]]; then
-    domain_payload=$(jq -n --argjson domains "$domains_json" '{docker_compose_domains:$domains}')
-    if ! printf '%s' "$domain_payload" | api PATCH "applications/$application_uuid" >/dev/null; then
-      die "could not set domains for $slug"
-    fi
-  fi
+  [[ "$actual_signature" == "$expected_signature" ]] || die "$slug environment keys do not exactly match its generated env file"
   echo "Created and configured $project_name"
 done
 
