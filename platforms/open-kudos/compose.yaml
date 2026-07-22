@@ -52,7 +52,6 @@ services:
   migrate:
     <<: [*service-defaults, *api-image]
     restart: "no"
-    entrypoint: []
     command: ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache"]
   app:
     <<: [*service-defaults, *api-image]
