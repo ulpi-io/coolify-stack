@@ -15,11 +15,11 @@ This repository contains the complete production Compose shape for the OGG portf
 - [Lokei](https://www.lokei.dev) ([API](https://api.lokei.dev), [recipe](platforms/lokei/))
 - [Albert](https://www.albert.con.fyi) ([API](https://api.albert.con.fyi), [recipe](platforms/albert/))
 - [Record Cloud](https://www.record.con.fyi) ([API](https://api.record.con.fyi), [recipe](platforms/record-cloud/))
-- [Plane](https://www.pm.con.fyi) ([recipe](platforms/plane/))
-- [Postiz](https://www.post.con.fyi) ([recipe](platforms/postiz/))
-- [Nudgra OSS](https://www.ig.con.fyi) ([recipe](platforms/nudgra-oss/))
-- [n8n](https://www.workflow.con.fyi) ([recipe](platforms/n8n/))
-- [Twenty](https://www.crm.con.fyi) ([recipe](platforms/twenty/))
+- [Plane](https://pm.con.fyi) ([recipe](platforms/plane/))
+- [Postiz](https://post.con.fyi) ([recipe](platforms/postiz/))
+- [Nudgra OSS](https://ig.con.fyi) ([recipe](platforms/nudgra-oss/))
+- [n8n](https://workflow.con.fyi) ([recipe](platforms/n8n/))
+- [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
 
 ## Production DNS A records
 
@@ -48,11 +48,11 @@ Every record below points to the production server at `68.183.135.86`. These are
 | `con.fyi` | `api.albert` | `A` | `68.183.135.86` |
 | `con.fyi` | `www.record` | `A` | `68.183.135.86` |
 | `con.fyi` | `api.record` | `A` | `68.183.135.86` |
-| `con.fyi` | `www.pm` | `A` | `68.183.135.86` |
-| `con.fyi` | `www.post` | `A` | `68.183.135.86` |
-| `con.fyi` | `www.ig` | `A` | `68.183.135.86` |
-| `con.fyi` | `www.workflow` | `A` | `68.183.135.86` |
-| `con.fyi` | `www.crm` | `A` | `68.183.135.86` |
+| `con.fyi` | `pm` | `A` | `68.183.135.86` |
+| `con.fyi` | `post` | `A` | `68.183.135.86` |
+| `con.fyi` | `ig` | `A` | `68.183.135.86` |
+| `con.fyi` | `workflow` | `A` | `68.183.135.86` |
+| `con.fyi` | `crm` | `A` | `68.183.135.86` |
 
 ## Layout
 

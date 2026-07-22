@@ -23,11 +23,11 @@ Environment scope for every deployment unit: **production only**.
 | Lokei | `lokei` | `https://www.lokei.dev` | Supplied by Ciprian |
 | Albert | `albert` | `https://www.albert.con.fyi`, `https://api.albert.con.fyi` | Supplied by Ciprian |
 | Record Cloud | `record-cloud` | `https://www.record.con.fyi` | Supplied by Ciprian |
-| Plane | `makeplane/plane` | `https://www.pm.con.fyi` | Coolify route |
-| Postiz | `ulpi-io/postiz-docker-compose` | `https://www.post.con.fyi` | Coolify route |
-| Nudgra OSS | `MaikoCode/nudgra-oss` | `https://www.ig.con.fyi` | Coolify route |
-| n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://www.workflow.con.fyi` | Coolify route |
-| Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://www.crm.con.fyi` | Coolify route |
+| Plane | `makeplane/plane` | `https://pm.con.fyi` | Coolify route |
+| Postiz | `ulpi-io/postiz-docker-compose` | `https://post.con.fyi` | Coolify route |
+| Nudgra OSS | `MaikoCode/nudgra-oss` | `https://ig.con.fyi` | Coolify route |
+| n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://workflow.con.fyi` | Coolify route |
+| Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Coolify route |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 

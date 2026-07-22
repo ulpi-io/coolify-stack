@@ -74,11 +74,11 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/albert` | `nginx` | `https://api.albert.con.fyi` |
 | `platforms/record-cloud` | `web` | `https://www.record.con.fyi` |
 | `platforms/record-cloud` | `api` | `https://api.record.con.fyi` |
-| `platforms/plane` | `proxy` | `https://www.pm.con.fyi` |
-| `platforms/postiz` | `postiz` | `https://www.post.con.fyi` |
-| `platforms/nudgra-oss` | `app` | `https://www.ig.con.fyi` |
-| `platforms/n8n` | `n8n` | `https://www.workflow.con.fyi` |
-| `platforms/twenty` | `twenty` | `https://www.crm.con.fyi` |
+| `platforms/plane` | `proxy` | `https://pm.con.fyi` |
+| `platforms/postiz` | `postiz` | `https://post.con.fyi` |
+| `platforms/nudgra-oss` | `app` | `https://ig.con.fyi` |
+| `platforms/n8n` | `n8n` | `https://workflow.con.fyi` |
+| `platforms/twenty` | `twenty` | `https://crm.con.fyi` |
 
 Coolify/Traefik owns public routing and TLS. Do not add host-published database or backing-service ports to these recipes.
 

@@ -30,7 +30,7 @@ tmp=$(mktemp "$(dirname "$output")/.twenty.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://www.crm.con.fyi
+APP_URL=https://crm.con.fyi
 TWENTY_IMAGE=twentycrm/twenty:v1.15
 APP_SECRET=$(random_hex)
 EMAIL_FROM_ADDRESS=no-reply@crm.con.fyi

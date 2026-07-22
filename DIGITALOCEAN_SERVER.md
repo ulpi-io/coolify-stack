@@ -40,12 +40,12 @@ The VPS is Ubuntu and runs Coolify-managed Docker workloads.
 
 Known application domains include:
 
-- Twenty CRM: `https://www.crm.con.fyi`
-- Plane: `https://www.pm.con.fyi`
-- Postiz: `https://www.post.con.fyi`
+- Twenty CRM: `https://crm.con.fyi`
+- Plane: `https://pm.con.fyi`
+- Postiz: `https://post.con.fyi`
 - Authentik: `https://login.con.fyi`
-- n8n: `https://www.workflow.con.fyi`
-- Nudgra: `https://www.ig.con.fyi`
+- n8n: `https://workflow.con.fyi`
+- Nudgra: `https://ig.con.fyi`
 
 Treat this list as orientation only. Resolve the current Coolify resource, container names, domains, and health at runtime; names and deployment suffixes change after redeployment.
 
