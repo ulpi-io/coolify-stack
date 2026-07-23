@@ -62,6 +62,7 @@ Every record below points to the production server at `68.183.135.86`. These are
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
 - `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
+- `scripts/update-app-env.sh` safely adds or updates selected environment keys for one existing Coolify application.
 
 There are exactly 17 Compose files and 17 env generators: one pair for infrastructure and one pair for each of the 16 platforms in `REPOSITORIES.md`.
 
@@ -120,6 +121,44 @@ scripts/create-resources.sh \
 ```
 
 The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, and recreates the stack sequentially. For each resource it waits for Coolify's Compose parser to finish, applies service domains, removes all parser-generated placeholder/default rows, and uploads exactly one generated row per key. It rejects any duplicate key, surviving `required` placeholder, or mismatch from the generated env file before moving to the next project; Coolify-managed `SERVICE_*` routing variables are permitted in addition to the generated keys. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction behavior.
+
+## Update one application's environment
+
+Copy the example outside the repository, keep it private, and add only the
+variables that need to be created or changed:
+
+```bash
+cp scripts/app-env.example /tmp/postiz-integrations.env
+chmod 600 /tmp/postiz-integrations.env
+${EDITOR:-vi} /tmp/postiz-integrations.env
+```
+
+Validate the app slug and file without contacting Coolify:
+
+```bash
+scripts/update-app-env.sh \
+  --check \
+  --app postiz \
+  --env-file /tmp/postiz-integrations.env
+```
+
+Update Coolify and deploy only that application:
+
+```bash
+scripts/update-app-env.sh \
+  --apply \
+  --app postiz \
+  --env-file /tmp/postiz-integrations.env \
+  --ssh-key /absolute/path/to/the/server/ssh/key \
+  --deploy
+```
+
+The updater preserves every unlisted variable, upserts each listed production
+key exactly once, never prints values, and rejects duplicate keys or insecure
+input-file permissions. Without `--deploy`, it saves the configuration and
+prints the exact single-app deployment command instead. Empty values are
+rejected unless `--allow-empty` is supplied intentionally. The localhost-only
+Coolify API is disabled and the temporary API token is revoked on exit.
 
 ## Build sources
 
