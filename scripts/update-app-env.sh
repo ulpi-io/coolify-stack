@@ -273,7 +273,7 @@ application_uuid=$(jq -r --arg name "$resource_name" '.[] | select(.name == $nam
 [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID"
 
 existing_envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not inspect $app_slug environment"
-duplicates_before=$(jq --argjson keys "$target_keys_json" '
+duplicates_before=$(jq -r --argjson keys "$target_keys_json" '
   [
     .[]
     | select(.is_preview == false and (.key as $key | $keys | index($key)))
@@ -289,7 +289,7 @@ printf '%s' "$env_payload" | api PATCH "applications/$application_uuid/envs/bulk
 unset env_payload
 
 updated_envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not verify $app_slug environment"
-duplicates_after=$(jq --argjson keys "$target_keys_json" '
+duplicates_after=$(jq -r --argjson keys "$target_keys_json" '
   [
     .[]
     | select(.is_preview == false and (.key as $key | $keys | index($key)))
@@ -299,7 +299,7 @@ duplicates_after=$(jq --argjson keys "$target_keys_json" '
   | map(select(length > 1) | .[0])
   | join(",")
 ' <<<"$updated_envs_json")
-missing_after=$(jq --argjson keys "$target_keys_json" '
+missing_after=$(jq -r --argjson keys "$target_keys_json" '
   [
     .[]
     | select(.is_preview == false and (.key as $key | $keys | index($key)))

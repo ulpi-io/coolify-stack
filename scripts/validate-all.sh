@@ -108,6 +108,10 @@ grep -Fq 'Promise.all([c(5000),c(3000)])' platforms/postiz/compose.yaml || {
   echo "Postiz healthcheck must cover both frontend and backend ports" >&2
   exit 1
 }
+grep -Fq "DISABLE_REGISTRATION: \${DISABLE_REGISTRATION:-true}" platforms/postiz/compose.yaml || {
+  echo "Postiz must allow only the first organization by default" >&2
+  exit 1
+}
 
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
