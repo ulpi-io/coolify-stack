@@ -98,6 +98,17 @@ do
   }
 done
 
+if ! grep -Fq 'temporal-namespace-bootstrap:' infrastructure/compose.yaml ||
+  ! grep -Fq 'namespace create --namespace postiz' infrastructure/compose.yaml
+then
+  echo "Infrastructure must create the Postiz Temporal namespace idempotently" >&2
+  exit 1
+fi
+grep -Fq 'Promise.all([c(5000),c(3000)])' platforms/postiz/compose.yaml || {
+  echo "Postiz healthcheck must cover both frontend and backend ports" >&2
+  exit 1
+}
+
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
 [[ "$compose_count" = 17 ]] || { echo "Expected 17 Compose files, found $compose_count" >&2; exit 1; }
