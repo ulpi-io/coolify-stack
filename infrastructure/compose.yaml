@@ -417,7 +417,6 @@ services:
       ENABLE_ES: "true"
       ES_SEEDS: elasticsearch
       ES_VERSION: v7
-      TEMPORAL_NAMESPACE: postiz
     healthcheck:
       test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233"]
       interval: 15s
@@ -428,6 +427,23 @@ services:
       resources:
         limits:
           memory: 2G
+
+  temporal-namespace-bootstrap:
+    image: temporalio/auto-setup:1.28.1
+    restart: "no"
+    networks:
+      - shared
+    depends_on:
+      temporal:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if temporal operator namespace describe --namespace postiz --address temporal:7233 >/dev/null 2>&1; then
+          echo "Temporal namespace postiz already exists"
+        else
+          temporal operator namespace create --namespace postiz --retention 168h --address temporal:7233
+        fi
 
   temporal-ui:
     <<: *service-defaults
