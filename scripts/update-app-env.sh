@@ -89,6 +89,7 @@ resource_specs=(
   'nudgra-oss|Nudgra OSS Stack'
   'n8n|N8N Stack'
   'twenty|Twenty Stack'
+  'buzz|Buzz Stack'
 )
 
 resource_name=""

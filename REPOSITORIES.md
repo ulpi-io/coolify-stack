@@ -28,6 +28,7 @@ Environment scope for every deployment unit: **production only**.
 | Nudgra OSS | `MaikoCode/nudgra-oss` | `https://ig.con.fyi` | Coolify route |
 | n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://workflow.con.fyi` | Coolify route |
 | Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Coolify route |
+| Buzz | `block/buzz` relay image and desktop clients | `wss://buzz.con.fyi` | Planned Coolify route; DNS pending |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 
@@ -92,3 +93,10 @@ Domains not listed in this table are still to be collected or verified from the 
     - Existing deployment: running on the production Coolify server
     - Current recipe: `TWENTY_CURRENT_RECIPE.md`
     - Research source: live deployment metadata plus official image documentation
+21. https://github.com/block/buzz
+    - Application: Buzz
+    - Ownership: third-party
+    - Deployment class: digest-pinned relay image; packaged desktop clients connect over WSS
+    - Current image: `ghcr.io/block/buzz@sha256:12763e38fd99fe8f4e63466a08ea8e3afbda4da0ebd1f51f0b57d78f9b082abe`
+    - Production route: `wss://buzz.con.fyi`
+    - Backing services: isolated shared PostgreSQL database/role, Redis ACL user, and MinIO bucket/service account

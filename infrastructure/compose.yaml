@@ -111,6 +111,7 @@ services:
       NUDGRA_DB_PASSWORD: ${NUDGRA_DB_PASSWORD:?required}
       N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?required}
       TWENTY_DB_PASSWORD: ${TWENTY_DB_PASSWORD:?required}
+      BUZZ_DB_PASSWORD: ${BUZZ_DB_PASSWORD:?required}
       TEMPORAL_DB_PASSWORD: ${TEMPORAL_DB_PASSWORD:?required}
     entrypoint: ["/bin/sh", "-ec"]
     command:
@@ -131,9 +132,11 @@ services:
         create_tenant nudgra nudgra "$$NUDGRA_DB_PASSWORD"
         create_tenant n8n n8n "$$N8N_DB_PASSWORD"
         create_tenant twenty twenty "$$TWENTY_DB_PASSWORD"
+        create_tenant buzz buzz "$$BUZZ_DB_PASSWORD"
         create_tenant temporal temporal "$$TEMPORAL_DB_PASSWORD"
         create_tenant temporal_visibility temporal "$$TEMPORAL_DB_PASSWORD"
         psql -d nudgra -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto'
+        psql -d buzz -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto'
 
   valkey-init:
     image: valkey/valkey:8.1.3-alpine
@@ -241,6 +244,7 @@ services:
       N8N_QUEUE_PASSWORD: ${N8N_QUEUE_PASSWORD:?required}
       POSTIZ_QUEUE_PASSWORD: ${POSTIZ_QUEUE_PASSWORD:?required}
       OPENPAY_QUEUE_PASSWORD: ${OPENPAY_QUEUE_PASSWORD:?required}
+      BUZZ_QUEUE_PASSWORD: ${BUZZ_QUEUE_PASSWORD:?required}
     volumes:
       - redis-queue-data:/data
     entrypoint: ["/bin/sh", "-ec"]
@@ -257,6 +261,7 @@ services:
           echo "user n8n on >$$N8N_QUEUE_PASSWORD ~n8n:* &n8n:* +@all"
           echo "user postiz on >$$POSTIZ_QUEUE_PASSWORD ~* &* +@all"
           echo "user openpay on >$$OPENPAY_QUEUE_PASSWORD ~openpay:* &openpay:* +@all"
+          echo "user buzz on >$$BUZZ_QUEUE_PASSWORD ~buzz:* &buzz:* +@all"
         } > /data/users.acl
         chown 999:999 /data/users.acl
         chmod 600 /data/users.acl
@@ -323,6 +328,8 @@ services:
       OPENPAY_S3_SECRET_KEY: ${OPENPAY_S3_SECRET_KEY:?required}
       TWENTY_S3_ACCESS_KEY: ${TWENTY_S3_ACCESS_KEY:?required}
       TWENTY_S3_SECRET_KEY: ${TWENTY_S3_SECRET_KEY:?required}
+      BUZZ_S3_ACCESS_KEY: ${BUZZ_S3_ACCESS_KEY:?required}
+      BUZZ_S3_SECRET_KEY: ${BUZZ_S3_SECRET_KEY:?required}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -340,6 +347,7 @@ services:
         provision kensi-ai "$$KENSI_AI_S3_ACCESS_KEY" "$$KENSI_AI_S3_SECRET_KEY"
         provision openpay "$$OPENPAY_S3_ACCESS_KEY" "$$OPENPAY_S3_SECRET_KEY"
         provision twenty "$$TWENTY_S3_ACCESS_KEY" "$$TWENTY_S3_SECRET_KEY"
+        provision buzz-media "$$BUZZ_S3_ACCESS_KEY" "$$BUZZ_S3_SECRET_KEY"
 
   qdrant:
     <<: *service-defaults

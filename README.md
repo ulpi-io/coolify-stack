@@ -20,6 +20,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [Nudgra OSS](https://ig.con.fyi) ([recipe](platforms/nudgra-oss/))
 - [n8n](https://workflow.con.fyi) ([recipe](platforms/n8n/))
 - [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
+- Buzz relay (planned at `wss://buzz.con.fyi`; [recipe](platforms/buzz/); packaged desktop client connects over WSS)
 
 ## Production DNS A records
 
@@ -54,17 +55,21 @@ Every record below points to the production server at `68.183.135.86`. These are
 | `con.fyi` | `workflow` | `A` | `68.183.135.86` |
 | `con.fyi` | `crm` | `A` | `68.183.135.86` |
 
+The Buzz recipe configures `buzz.con.fyi`, but that DNS record is not present
+yet. Add `con.fyi` / `buzz` / `A` / `68.183.135.86` before deployment; this
+repository intentionally does not mutate DNS.
+
 ## Layout
 
 - `infrastructure/compose.yaml` contains the reusable backing services.
-- `infrastructure/generate-env.sh` creates the infrastructure env plus 16 isolated platform fragments.
+- `infrastructure/generate-env.sh` creates the infrastructure env plus 17 isolated platform fragments.
 - `platforms/<slug>/compose.yaml` contains one logical application stack.
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
 - `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
 - `scripts/update-app-env.sh` safely adds or updates selected environment keys for one existing Coolify application.
 
-There are exactly 17 Compose files and 17 env generators: one pair for infrastructure and one pair for each of the 16 platforms in `REPOSITORIES.md`.
+There are exactly 18 Compose files and 18 env generators: one pair for infrastructure and one pair for each of the 17 platforms in `REPOSITORIES.md`.
 
 ## Shared infrastructure
 
@@ -101,7 +106,7 @@ Generators create mode-`0600` files, do not print secret values, and refuse over
 scripts/validate-all.sh
 ```
 
-The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 17 Compose models, and rejects duplicated shared-service containers inside platform stacks. It never runs `docker compose up`.
+The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 18 Compose models, and rejects duplicated shared-service containers inside platform stacks. It never runs `docker compose up`.
 
 ## Create the Coolify resources
 
@@ -117,7 +122,20 @@ For a clean rebuild, set Coolify API Allowed IPs to exactly `127.0.0.1,::1`, the
 scripts/create-resources.sh \
   --apply \
   --reset \
+  --buzz-owner-pubkey "$BUZZ_OWNER_PUBKEY" \
   --ssh-key /absolute/path/to/the/server/ssh/key
+```
+
+Buzz is a closed relay by default. The owner public key is bootstrapped into its
+membership table; keep the matching owner private key in the desktop client and
+in a secure backup, never in this repository. To create a fresh owner identity,
+run the pinned image's `buzz-admin generate-key` command on a trusted machine and
+store the displayed secret before using its public key above.
+
+```bash
+docker run --rm --entrypoint /usr/local/bin/buzz-admin \
+  ghcr.io/block/buzz@sha256:12763e38fd99fe8f4e63466a08ea8e3afbda4da0ebd1f51f0b57d78f9b082abe \
+  generate-key
 ```
 
 The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, and recreates the stack sequentially. For each resource it waits for Coolify's Compose parser to finish, applies service domains, removes all parser-generated placeholder/default rows, and uploads exactly one generated row per key. It rejects any duplicate key, surviving `required` placeholder, or mismatch from the generated env file before moving to the next project; Coolify-managed `SERVICE_*` routing variables are permitted in addition to the generated keys. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction behavior.
@@ -162,8 +180,14 @@ Coolify API is disabled and the temporary API token is revoked on exit.
 
 ## Build sources
 
-Existing published images are used for Plane, Postiz, n8n, Twenty, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.
+Existing published images are used for Plane, Postiz, n8n, Twenty, Buzz, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.
 
 Plane is pinned to the healthy server-deployed `v1.3.0` release. Postiz is pinned to the exact digest currently running healthily on the server (`sha256:1d5a5dc6b896747d1483c01dc2562165bd313ad601b32f6cabb7f7dd08a911a9`) instead of the mutable `latest` tag.
+
+Buzz is pinned to the multi-architecture digest published for upstream commit
+`3e48f1b` (`sha256:12763e38fd99fe8f4e63466a08ea8e3afbda4da0ebd1f51f0b57d78f9b082abe`).
+The relay uses isolated shared PostgreSQL, durable Redis, and MinIO credentials,
+plus its own persistent git scratch volume. Install the packaged Buzz desktop
+client and connect it to `wss://buzz.con.fyi`.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.
