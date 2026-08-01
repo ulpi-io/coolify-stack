@@ -282,6 +282,9 @@ services:
       retries: 10
     environment:
       REDIS_QUEUE_ADMIN_PASSWORD: ${REDIS_QUEUE_ADMIN_PASSWORD:?required}
+      # Keep this consumer credential in the service config so adding Buzz
+      # recreates Redis after redis-queue-init rewrites the shared ACL file.
+      BUZZ_QUEUE_PASSWORD: ${BUZZ_QUEUE_PASSWORD:?required}
     deploy:
       resources:
         limits:
