@@ -47,6 +47,9 @@ Known application domains include:
 - n8n: `https://workflow.con.fyi`
 - Nudgra: `https://ig.con.fyi`
 
+The stack recipe reserves `https://buzz.con.fyi` for Buzz (desktop/CLI clients
+use `wss://buzz.con.fyi`), but its DNS record must be created before deployment.
+
 Treat this list as orientation only. Resolve the current Coolify resource, container names, domains, and health at runtime; names and deployment suffixes change after redeployment.
 
 ## Required Operating Discipline

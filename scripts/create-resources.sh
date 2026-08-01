@@ -11,6 +11,7 @@ coolify_user=${COOLIFY_USER:-root}
 server_uuid=${COOLIFY_SERVER_UUID:-gxazsje7tdtphinl8zu8k1cr}
 repository_url=${COOLIFY_REPOSITORY_URL:-https://github.com/ulpi-io/coolify-stack.git}
 operator_email=${OPERATOR_EMAIL:-cip@opengrowthgroup.co}
+buzz_owner_pubkey=""
 ssh_key=${COOLIFY_SSH_KEY:-}
 mode=""
 reset=0
@@ -36,6 +37,8 @@ Options:
   --host HOST         Coolify server SSH host (default: 68.183.135.86).
   --server-uuid UUID  Coolify destination server UUID.
   --operator-email E  Nudgra operator email allowlist value.
+  --buzz-owner-pubkey HEX
+                     64-character hex Nostr public key bootstrapped as Buzz owner.
   --repository URL    Git repository containing these Compose files.
 
 Before --apply, restrict Coolify API Allowed IPs to exactly:
@@ -58,6 +61,7 @@ while (($#)); do
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --server-uuid) [[ $# -ge 2 ]] || die "--server-uuid needs a value"; server_uuid=$2; shift 2 ;;
     --operator-email) [[ $# -ge 2 ]] || die "--operator-email needs a value"; operator_email=$2; shift 2 ;;
+    --buzz-owner-pubkey) [[ $# -ge 2 ]] || die "--buzz-owner-pubkey needs a value"; buzz_owner_pubkey=$2; shift 2 ;;
     --repository) [[ $# -ge 2 ]] || die "--repository needs a value"; repository_url=$2; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown argument: $1" ;;
@@ -66,8 +70,16 @@ done
 
 [[ -n "$mode" ]] || { usage; exit 2; }
 [[ "$operator_email" == *@* ]] || die "--operator-email must be an email address"
+if [[ "$mode" == apply ]]; then
+  [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--apply requires --buzz-owner-pubkey with a 64-character hex Nostr public key"
+elif [[ -z "$buzz_owner_pubkey" ]]; then
+  # Public key for secret scalar 1. It is used only in throwaway --check output.
+  buzz_owner_pubkey=79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798
+else
+  [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--buzz-owner-pubkey must be a 64-character hex Nostr public key"
+fi
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz)
 
 # slug|project|compose path|resource|domains JSON|description
 stacks=(
@@ -88,6 +100,7 @@ stacks=(
   'nudgra-oss|Nudgra OSS|/platforms/nudgra-oss/compose.yaml|Nudgra OSS Stack|[{"name":"app","domain":"https://ig.con.fyi"}]|Production Nudgra OSS application stack.'
   'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://workflow.con.fyi"}]|Production n8n workflow automation stack.'
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
+  'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
 )
 
 cleanup() {
@@ -128,21 +141,26 @@ chmod 700 "$work_dir"
 echo "Generating fresh environment values..."
 infrastructure/generate-env.sh --output-dir "$work_dir"
 for slug in "${platforms[@]}"; do
-  "platforms/$slug/generate-env.sh" \
-    --shared-env "$work_dir/platforms/$slug.shared.env" \
+  generator_args=(
+    --shared-env "$work_dir/platforms/$slug.shared.env"
     --output "$work_dir/$slug.env"
+  )
+  if [[ "$slug" == buzz ]]; then
+    generator_args+=(--owner-pubkey "$buzz_owner_pubkey")
+  fi
+  "platforms/$slug/generate-env.sh" "${generator_args[@]}"
 done
 sed -i.bak "s/^OPERATOR_EMAIL_ALLOWLIST=.*/OPERATOR_EMAIL_ALLOWLIST=$operator_email/" "$work_dir/nudgra-oss.env"
 rm -f -- "$work_dir/nudgra-oss.env.bak"
 
-[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 17 ]] || die "expected 17 generated env files"
+[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 18 ]] || die "expected 18 generated env files"
 for env_file in "$work_dir"/*.env; do
   [[ $(stat -f '%Lp' "$env_file") == 600 ]] || die "$env_file is not mode 0600"
   ! grep -Eq '=required$|=.+ is required$|=replace-with-|example\.invalid' "$env_file" || die "$env_file still contains a placeholder"
 done
 
 if [[ "$mode" == check ]]; then
-  echo "CHECK PASSED: 17 environment files generated with no required placeholders; no remote changes made."
+  echo "CHECK PASSED: 18 environment files generated with no required placeholders; no remote changes made."
   exit 0
 fi
 
@@ -332,4 +350,4 @@ while IFS=$'\t' read -r slug _ application_uuid _; do
 done < "$manifest"
 [[ $bad_status -eq 0 ]] || die "one or more resources were deployed unexpectedly"
 
-echo "DONE: 17 projects and 17 configured Git Compose resources created; nothing was deployed."
+echo "DONE: 18 projects and 18 configured Git Compose resources created; nothing was deployed."

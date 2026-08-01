@@ -71,6 +71,7 @@ resource_specs=(
   'nudgra-oss|Nudgra OSS Stack'
   'n8n|N8N Stack'
   'twenty|Twenty Stack'
+  'buzz|Buzz Stack'
 )
 
 if [[ -n "$only_slug" ]]; then

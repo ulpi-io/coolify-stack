@@ -11,11 +11,11 @@ The following capabilities are reused by multiple compatible applications. Shari
 | Shared capability | Technology | Current consumers | Purpose | Isolation |
 | --- | --- | --- | --- | --- |
 | `mysql` | MySQL 8.4 LTS | Lokei, Albert, Record Cloud, Insight, Kensi AI, AgentsHQ, Togglebox MySQL edition, OpenPay, OpenKudos | Primary relational database for applications currently built for MySQL | One database and restricted user per application |
-| `postgres` | PostgreSQL 16 | Plane, Postiz, Nudgra, n8n, Twenty, Postiz Temporal | Primary relational database only for applications that already use PostgreSQL | One database, `NOSUPERUSER` role, schema ownership, and connection limit per application |
+| `postgres` | PostgreSQL 16 | Plane, Postiz, Nudgra, n8n, Twenty, Buzz, Postiz Temporal | Primary relational database only for applications that already use PostgreSQL | One database, `NOSUPERUSER` role, schema ownership, and connection limit per application |
 | `valkey` | Valkey 8 | Plane | Plane's existing Valkey-compatible cache contract and future verified Valkey consumers | Dedicated ACL user; disposable cache policy |
 | `redis-cache` | Redis 7.2 | Twenty; Postiz cache when classified; OpenPay optional | Disposable cache, sessions, rate limits, and short-lived locks for Redis-bound applications | One ACL user per application; key prefixes where supported |
-| `redis-queue` | Redis 7.2 | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz; OpenPay optional | Durable queues, Horizon/BullMQ jobs, retries, and workflow state | One ACL user per application; AOF `everysec`, `noeviction` |
-| `minio` | Shared MinIO S3-compatible object storage | Record Cloud, Plane; Kensi AI, OpenPay, and Twenty when S3 storage is enabled; future S3-compatible consumers | Uploads, recordings, attachments, and application objects | One bucket, service account, and least-privilege bucket policy per application |
+| `redis-queue` | Redis 7.2 | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz; OpenPay optional | Durable queues, Horizon/BullMQ jobs, retries, pub/sub, presence, and workflow state | One ACL user per application; AOF `everysec`, `noeviction` |
+| `minio` | Shared MinIO S3-compatible object storage | Record Cloud, Plane, Buzz; Kensi AI, OpenPay, and Twenty when S3 storage is enabled; future S3-compatible consumers | Uploads, recordings, attachments, and application objects | One bucket, service account, and least-privilege bucket policy per application |
 | `qdrant` | Qdrant | Albert | Vector search for Albert and future applications | Separate collection namespace, ownership record, resource budget, snapshots, and restore test per application |
 | `rabbitmq` | RabbitMQ | Plane | Durable message brokering for Plane and future applications | Separate vhost, user, permissions, policies, quotas, and monitoring per application |
 | `elasticsearch` | Elasticsearch | Postiz Temporal | Search and indexing for Postiz/Temporal and future applications | Separate index/alias prefix, role or API key, ILM policy, resource budget, and snapshot scope per application |
@@ -34,7 +34,7 @@ The object-storage implementation is **one shared MinIO deployment** managed by 
 - Every application receives a dedicated MinIO service account and a policy restricted to its bucket and required operations.
 - The S3 API is available only through the shared application network unless a specific application proves that a public endpoint is required for direct client uploads.
 - The MinIO administration console is restricted to trusted operators and is not a public application service.
-- Record Cloud and Plane are initial required consumers.
+- Record Cloud, Plane, and Buzz are required consumers.
 - Kensi AI, OpenPay, and Twenty use the same MinIO service when their existing S3 storage mode is enabled.
 - Future applications with an S3-compatible storage contract use this shared MinIO service by default.
 - MinIO data is stateful and must be included in the off-server backup and restore-test design; storing the only backup inside the same MinIO deployment is not a backup.
@@ -43,7 +43,7 @@ Application configuration uses the MinIO S3 endpoint plus application-specific a
 
 ## Shared PostgreSQL 16 Compatibility
 
-PostgreSQL 16 is the common major for the shared PostgreSQL service. It directly matches n8n, Twenty, and Postiz's Temporal database. The source audit found no PostgreSQL 17-only schema feature in Postiz or Nudgra and no PostgreSQL 15-only dependency in Plane. Nudgra's explicit `pgcrypto` extension is available in PostgreSQL 16.
+PostgreSQL 16 is the common major for the shared PostgreSQL service. It directly matches n8n, Twenty, and Postiz's Temporal database. The source audit found no PostgreSQL 17-only schema feature in Postiz, Nudgra, or Buzz and no PostgreSQL 15-only dependency in Plane. The `pgcrypto` extension required by Nudgra and Buzz is available in PostgreSQL 16.
 
 | Consumer | Current repository/recipe baseline | PostgreSQL 16 decision | Required acceptance gate |
 | --- | --- | --- | --- |
@@ -53,6 +53,7 @@ PostgreSQL 16 is the common major for the shared PostgreSQL service. It directly
 | Nudgra OSS | PostgreSQL 17; Drizzle, `pg`, `pg-boss`, and `pgcrypto` | Compatible target based on inspected dependencies and migrations | Run all migrations from empty on PostgreSQL 16 and validate authentication, CRUD, realtime paths, `pg-boss` jobs, and initialized-data backup/restore |
 | n8n | PostgreSQL 16 | Direct match | Run n8n migrations against its fresh isolated database and validate editor, webhook, queue execution, retries, worker, task runner, and backup/restore |
 | Twenty | PostgreSQL 16; Twenty's development documentation also requires PostgreSQL 16 | Direct match | Run migrations once against its fresh isolated database and validate app, worker, `pg-boss`, and backup/restore |
+| Buzz | PostgreSQL 17 in the official VPS Compose; SQLx migrations with `pgcrypto` and no PostgreSQL 17-only feature found | Compatible target for a fresh isolated PostgreSQL 16 database | Run embedded migrations from empty twice; validate relay events, search, membership, media, git, and initialized-data backup/restore |
 
 One PostgreSQL 16 server process does not mean one shared schema. Each application receives its own database and non-superuser owner role. Temporal receives its required persistence databases and roles separately from the Postiz application database. Extensions are enabled only in the database that needs them.
 
@@ -165,6 +166,7 @@ The portfolio runs both technologies: Valkey for Plane, whose official stack alr
 | OpenKudos / TeamToast | Redis queue service | Redis queue service | Its Laravel production stack runs worker and scheduler against Redis |
 | Plane | Valkey | RabbitMQ | Plane's official stack already uses Valkey and RabbitMQ |
 | Postiz | Redis queue service | Redis queue service | Its pinned fork uses Redis 7.2 with AOF, so the durable policy is preserved |
+| Buzz | Redis queue service | Redis pub/sub and short-lived coordination | Upstream's production bundle enables AOF; all inspected keys and channels use the `buzz:*` prefix, allowing a restricted ACL user |
 | n8n | No | Redis queue service | Queue mode points BullMQ at Redis |
 | Twenty | Redis cache service | PostgreSQL `pg-boss` | Its recipe uses Redis for cache and PostgreSQL for jobs |
 | OpenPay | Database by default | Database by default | Redis remains available if Horizon/Redis modes are enabled later |
@@ -188,7 +190,7 @@ The stack provides multiple shared durable-execution technologies because applic
 | --- | --- | --- | --- |
 | `temporal` | Long-running durable workflows, retries, timers, and workflow state | Postiz is the first consumer | Namespace, task queues, retention, search attributes, worker identity, and monitoring per application |
 | `rabbitmq` | AMQP message queues and event delivery | Plane is the first consumer | Vhost, user, permissions, policies, quotas, dead-letter configuration, and monitoring per application |
-| `redis-queue` | Redis queues such as Laravel Horizon, BullMQ, and n8n queue mode | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz | ACL user, key/channel prefix where supported, queue names, persistence budget, and monitoring per application |
+| `redis-queue` | Redis queues, pub/sub, and coordination such as Laravel Horizon, BullMQ, n8n queue mode, and Buzz presence/events | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz | ACL user, key/channel prefix where supported, queue names, persistence budget, and monitoring per application |
 | Shared PostgreSQL | Database-backed job queues | Twenty uses `pg-boss`; OpenPay currently defaults to database queues | Separate application database/role; job tables remain inside the application's database |
 
 Future software selects the shared service matching its native, supported queue/workflow backend. Existing applications are not rewritten from one durable-execution technology to another merely to standardize the stack.
@@ -234,6 +236,7 @@ Statuses:
 | Nudgra OSS | Shared PostgreSQL 16 after fresh migration, `pgcrypto`, and `pg-boss` validation | None observed | PostgreSQL `pg-boss` inside Nudgra's isolated database | None observed | None observed | Pinned Compose uses PostgreSQL 17; inspected migrations require `pgcrypto` but no PostgreSQL 17-only feature was found; no data is migrated |
 | n8n | Shared PostgreSQL 16 after fresh schema validation | None | Shared Valkey queue; n8n worker and external runners | Fresh local n8n volume; external binary storage Pending | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 6, queue mode, worker, and task runners; no data is migrated |
 | Twenty | Shared PostgreSQL 16 after fresh schema validation | Shared Redis cache | PostgreSQL `pg-boss`; no Redis queue required by current recipe | Shared object storage when S3 mode is enabled | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 7, worker, local storage, and `pg-boss`; no data is migrated |
+| Buzz | Shared PostgreSQL 16 after fresh SQLx migration validation | Shared durable Redis for pub/sub, presence, replay protection, and rate limits | Redis pub/sub; no separate worker observed | Shared object storage with isolated `buzz-media` bucket; app-scoped git scratch volume | None observed | Official production Compose uses PostgreSQL 17, Redis 7 with AOF, MinIO, and a git volume; the recipe preserves these contracts through shared isolated services |
 
 ## Database Engine Preservation Policy
 
@@ -250,7 +253,7 @@ Current engine groups:
 
 | Engine | Applications |
 | --- | --- |
-| PostgreSQL 16 target | Plane, Postiz, Nudgra OSS, n8n, Twenty, plus Postiz's Temporal databases |
+| PostgreSQL 16 target | Plane, Postiz, Nudgra OSS, n8n, Twenty, Buzz, plus Postiz's Temporal databases |
 | MySQL 8.4 LTS target | Lokei, Albert, Record Cloud, Insight/Clavinci, Kensi AI, AgentsHQ, Togglebox MySQL edition, OpenPay, OpenKudos/TeamToast |
 | No application database observed | Ploon and Open Growth Group website |
 
