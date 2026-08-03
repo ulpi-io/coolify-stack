@@ -159,6 +159,14 @@ grep -Fq 'command: ["php", "artisan", "migrate", "--force", "--no-interaction"]'
   echo "SocialReply must run one release migration service" >&2
   exit 1
 }
+[[ $(grep -Fc 'dockerfile_inline: *api-dockerfile' platforms/social-reply/compose.yaml) == 2 ]] || {
+  echo "SocialReply API and nginx builds must inline the pinned upstream Dockerfile for Coolify compatibility" >&2
+  exit 1
+}
+grep -Fq 'dockerfile_inline: *web-dockerfile' platforms/social-reply/compose.yaml || {
+  echo "SocialReply web build must inline the pinned upstream Dockerfile for Coolify compatibility" >&2
+  exit 1
+}
 # shellcheck disable=SC2016
 grep -Fq 'user social-reply on >$$SOCIAL_REPLY_QUEUE_PASSWORD ~social-reply:* &social-reply:* +@all' infrastructure/compose.yaml || {
   echo "Shared Redis must restrict SocialReply to social-reply-prefixed keys and channels" >&2
