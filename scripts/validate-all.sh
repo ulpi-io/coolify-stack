@@ -155,6 +155,11 @@ grep -Fq 'SOCIAL_REPLY_SOURCE_REF=09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e' plat
   echo "SocialReply must pin the audited source commit" >&2
   exit 1
 }
+# shellcheck disable=SC2016
+grep -Fq '$application->settings->inject_build_args_to_dockerfile=false' scripts/create-resources.sh || {
+  echo "SocialReply creation must disable Coolify 4.1.2 Dockerfile build-arg injection" >&2
+  exit 1
+}
 grep -Fq 'command: ["php", "artisan", "migrate", "--force", "--no-interaction"]' platforms/social-reply/compose.yaml || {
   echo "SocialReply must run one release migration service" >&2
   exit 1

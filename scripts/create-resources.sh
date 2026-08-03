@@ -305,6 +305,16 @@ for stack in "${stacks[@]}"; do
     '{project_uuid:$project_uuid,server_uuid:$server_uuid,environment_name:"production",git_repository:$repository_url,git_branch:"main",build_pack:"dockercompose",docker_compose_location:$compose_location,name:$resource_name,description:$description,autogenerate_domain:false,instant_deploy:false,is_auto_deploy_enabled:false,is_force_https_enabled:true,connect_to_docker_network:false,is_container_label_escape_enabled:false}')
   application_response=$(printf '%s' "$application_payload" | api POST applications/public) || die "could not create application $resource_name"
   application_uuid=$(jq -er .uuid <<<"$application_response") || die "Coolify returned no application UUID for $resource_name"
+  [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID for $resource_name"
+
+  if [[ "$slug" == social-reply ]]; then
+    # Coolify 4.1.2's optional build-arg injector does not understand
+    # dockerfile_inline with remote Git contexts. SocialReply passes its public
+    # build args explicitly and supplies Git authentication as a BuildKit secret.
+    # shellcheck disable=SC2029
+    ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+      "docker exec coolify php artisan tinker --execute='\$application=App\\Models\\Application::where(\"uuid\",\"$application_uuid\")->firstOrFail(); \$application->settings->inject_build_args_to_dockerfile=false; \$application->settings->save();'" >/dev/null
+  fi
   printf '%s\t%s\t%s\t%s\n' "$slug" "$project_uuid" "$application_uuid" "$domains_json" >> "$manifest"
 
   # Coolify saves docker_compose_raw before it finishes extracting environment
