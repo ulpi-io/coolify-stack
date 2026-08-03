@@ -100,7 +100,7 @@ Coolify/Traefik owns public routing and TLS. Do not add host-published database 
 
 ## Laravel cache/queue compatibility note
 
-Plane uses the shared Valkey service. Applications whose existing recipes use Redis receive the shared Redis endpoints. Laravel applications currently expose one Redis credential set for both cache and queue, so they use durable `redis-queue`; n8n, Postiz, Buzz, and SocialReply also use `redis-queue`, while Twenty uses `redis-cache`. SocialReply is the intentional database exception: its source contract requires PostgreSQL 17 plus pgvector, so `platforms/social-reply` owns a dedicated, persistent database container instead of targeting shared PostgreSQL 16.
+Plane uses the shared Valkey service. Applications whose existing recipes use Redis receive the shared Redis endpoints. Laravel applications currently expose one Redis credential set for both cache and queue, so they use durable `redis-queue`; n8n, Postiz, Buzz, and SocialReply also use `redis-queue`, while Twenty uses `redis-cache`. All PostgreSQL consumers use isolated databases and restricted roles on shared PostgreSQL 17. SocialReply additionally enables pgvector inside only its own database.
 
 ## 6. Acceptance checks after a later deployment
 

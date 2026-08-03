@@ -82,7 +82,7 @@ There are exactly 19 Compose files and 19 env generators: one pair for infrastru
 The infrastructure Compose defines:
 
 - MySQL 8.4 with a separate database and restricted user for each MySQL consumer.
-- PostgreSQL 16 with a separate database/role for each PostgreSQL consumer and Temporal persistence.
+- PostgreSQL 17 with pgvector, a separate database/role for each PostgreSQL consumer, and Temporal persistence.
 - Valkey 8 for Plane, which already uses Valkey in its official stack.
 - separate Redis 7.2 cache and durable-queue processes for applications whose current recipes use Redis.
 - MinIO with per-application buckets, users, and bucket policies.
@@ -112,7 +112,7 @@ Generators create mode-`0600` files, do not print secret values, and refuse over
 scripts/validate-all.sh
 ```
 
-The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 19 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces SocialReply's explicit PostgreSQL 17 plus pgvector exception. It never runs `docker compose up`.
+The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 19 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces the shared PostgreSQL 17 plus pgvector contract used by SocialReply and the existing PostgreSQL consumers. It never runs `docker compose up`.
 
 ## Create the Coolify resources
 
@@ -208,10 +208,9 @@ client and connect it to `wss://buzz.con.fyi`.
 
 SocialReply builds its Laravel API, nginx sidecar, Horizon worker, scheduler,
 Reverb server, and Next.js web application from audited source commit
-`09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`. It keeps the upstream-required
-PostgreSQL 17 plus pgvector database inside the application stack, pinned to
-the verified multi-architecture image digest. Durable Redis, MinIO object
-storage, and Mailpit remain shared with application-specific credentials and
-namespaces.
+`09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`. Its isolated database and role use
+the shared PostgreSQL 17 service; pgvector is enabled only in that database.
+Durable Redis, MinIO object storage, and Mailpit are also shared with
+application-specific credentials and namespaces.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.

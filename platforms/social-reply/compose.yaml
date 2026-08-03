@@ -254,8 +254,8 @@ x-api-environment: &api-environment
   LOG_LEVEL: info
 
   DB_CONNECTION: pgsql
-  DB_HOST: social-reply-postgres
-  DB_PORT: "5432"
+  DB_HOST: ${DB_HOST:?required}
+  DB_PORT: ${DB_PORT:?required}
   DB_DATABASE: ${DB_DATABASE:?required}
   DB_USERNAME: ${DB_USERNAME:?required}
   DB_PASSWORD: ${DB_PASSWORD:?required}
@@ -388,63 +388,12 @@ x-api-environment: &api-environment
   RESEND_WEBHOOK_SECRET:
 
 services:
-  social-reply-postgres:
-    <<: *service-defaults
-    image: ${POSTGRES_IMAGE:?required}
-    shm_size: 256mb
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?required}
-      POSTGRES_DB: postgres
-    volumes:
-      - social-reply-postgres-data:/var/lib/postgresql/data
-    networks: [internal]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  database-bootstrap:
-    image: ${POSTGRES_IMAGE:?required}
-    restart: "no"
-    environment:
-      PGHOST: social-reply-postgres
-      PGUSER: postgres
-      PGPASSWORD: ${DB_ADMIN_PASSWORD:?required}
-      DB_PASSWORD: ${DB_PASSWORD:?required}
-    networks: [internal]
-    depends_on:
-      social-reply-postgres:
-        condition: service_healthy
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        case "$$DB_PASSWORD" in *[!0-9a-f]*) echo "DB_PASSWORD must be lowercase hex" >&2; exit 1;; esac
-        if ! psql -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='socialreply'" | grep -qx 1; then
-          psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE socialreply LOGIN PASSWORD '$$DB_PASSWORD' NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT CONNECTION LIMIT 100"
-        else
-          psql -d postgres -v ON_ERROR_STOP=1 -c "ALTER ROLE socialreply PASSWORD '$$DB_PASSWORD'"
-        fi
-        if ! psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='socialreply'" | grep -qx 1; then
-          createdb -O socialreply socialreply
-        fi
-        psql -d socialreply -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector"
-
   migrate:
     <<: [*service-defaults, *api-runtime-image]
     restart: "no"
     command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
     environment: *api-environment
     networks: [internal, shared]
-    depends_on:
-      database-bootstrap:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -616,11 +565,6 @@ services:
       resources:
         limits:
           memory: 512M
-
-volumes:
-  social-reply-postgres-data:
-    labels:
-      com.socialreply.volume: postgres
 
 networks:
   internal:
