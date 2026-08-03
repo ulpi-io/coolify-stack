@@ -9,62 +9,16 @@ x-service-defaults: &service-defaults
       max-file: "3"
 
 # Coolify 4.1.2 rewrites a named Dockerfile inside a remote Git context as a
-# local recipe path. Keep the exact Dockerfiles from SOCIAL_REPLY_SOURCE_REF
-# inline instead; doubled dollars are Compose escapes and reach BuildKit once.
+# local recipe path. Inline the pinned upstream production stages instead;
+# doubled dollars are Compose escapes and reach BuildKit once.
 x-api-dockerfile: &api-dockerfile |
-  # SocialReply API — one image, four processes (DECISIONS.md §17).
-  #
-  # `app` (php-fpm), `horizon` (php artisan horizon), `scheduler`
-  # (php artisan schedule:work) and `reverb` (php artisan reverb:start) all run
-  # THIS image and differ only by their compose `command:`. That is deliberate:
-  # 01-architecture.md §9.3 requires "one Docker image per process type ... a
-  # shared base image layer for PHP dependencies", and a single artifact means a
-  # worker can never be running different code than the API that enqueued its job.
-  #
-  # No `# syntax=` directive on purpose: everything used here (multi-stage,
-  # `RUN --mount=type=cache`, `COPY --from`) is supported by BuildKit's BUILT-IN
-  # dockerfile frontend, so a build never has to pull an external frontend image.
-  #
-  # Conventions enforced here (.claude/skills/docker):
-  #   * multi-stage: base -> vendor -> build -> runtime
-  #   * base image pinned by DIGEST, not a floating tag
-  #   * frozen lockfile (`composer install` fails if composer.lock drifts)
-  #   * non-root runtime user (www-data)
-  #   * no secrets: no COPY .env, no ENV with a credential, no build ARG secret.
-  #     Every credential (APP_KEY, DB_PASSWORD, REVERB_APP_SECRET, ...) arrives as
-  #     a real environment variable at RUN time.
-  #
-  # Deliberately NOT here:
-  #   * `HEALTHCHECK` — one image serves four different processes, so the liveness
-  #     probe belongs to each compose service, not to the shared image.
-  #   * `php artisan config:cache` / `route:cache` — caching config at BUILD time
-  #     would bake build-time env (i.e. nothing) into the image and silently
-  #     freeze out the runtime environment. Cache at release time or boot, per
-  #     §9.3's "migrations run as a release-time step" philosophy.
 
-  # --------------------------------------------------------------------------
-  # Stage 1: base — PHP runtime + extensions, shared by every later stage
-  # --------------------------------------------------------------------------
-  # php:8.4-fpm-alpine3.22 == PHP 8.4.22 on Alpine 3.22.4.
   FROM php:8.4-fpm-alpine3.22@sha256:e0f1ffe8bd43a137facdccdcac41cabdfc23e8d0fdd0665916a062f16e2f4058 AS base
 
-  # Pinned so an image rebuild resolves the same extension version.
   ARG PECL_REDIS_VERSION=6.3.0
 
   WORKDIR /var/www/html
 
-  # One layer: runtime libs, build deps, extensions, cleanup of the build deps.
-  #   pdo_pgsql  — PostgreSQL 17 is the only data store (DECISIONS.md §3.1)
-  #   redis      — REDIS_CLIENT=phpredis backs cache, queue, session and the
-  #                Reverb scaling backplane
-  #   pcntl      — required by Horizon's master supervisor (and by Reverb)
-  #   intl, bcmath, zip — framework/first-party package expectations
-  #   opcache    — already compiled into the official image; only tuned below
-  #   fcgi       — `cgi-fcgi`, the app container's FastCGI health probe
-  #   tini       — PID 1 that forwards signals and REAPS ORPHANS. Load-bearing for
-  #                the scheduler: routes/console.php uses runInBackground(), whose
-  #                detached children would otherwise pile up as zombies under a
-  #                PHP process that never reaps.
   RUN set -eux; \
       apk add --no-cache \
           fcgi \
@@ -99,7 +53,6 @@ x-api-dockerfile: &api-dockerfile |
       rm -rf /tmp/pear /usr/local/lib/php/doc; \
       php -m
 
-  # Production PHP settings. No credentials, no environment-specific values.
   RUN { \
           echo 'expose_php = Off'; \
           echo 'memory_limit = 256M'; \
@@ -119,11 +72,6 @@ x-api-dockerfile: &api-dockerfile |
           echo 'opcache.enable_cli = 0'; \
       } > /usr/local/etc/php/conf.d/zz-socialreply.ini
 
-  # FPM pool overrides. `clear_env = no` is load-bearing: with FPM's default the
-  # worker environment is wiped, so DB_HOST / REDIS_HOST / APP_KEY injected by the
-  # orchestrator would be invisible to env() and every config default would win.
-  # The log lines route FPM's own output to stderr so the json-file log driver
-  # (docker-compose.yml) captures it instead of a file inside the container.
   RUN { \
           echo '[global]'; \
           echo 'error_log = /proc/self/fd/2'; \
@@ -141,38 +89,12 @@ x-api-dockerfile: &api-dockerfile |
           echo 'pm.max_requests = 500'; \
       } > /usr/local/etc/php-fpm.d/zz-socialreply.conf
 
-  # tini in front of the image's own entrypoint: signal forwarding + zombie reaping
-  # for every one of the four process roles.
   ENTRYPOINT ["/sbin/tini", "--", "docker-php-entrypoint"]
 
-  # --------------------------------------------------------------------------
-  # Stage 2: vendor — Composer dependencies only (cached on the lockfile)
-  # --------------------------------------------------------------------------
   FROM base AS vendor
 
-  # Build-time-only override: config/broadcasting.php defaults BROADCAST_CONNECTION
-  # to `reverb`, and routes/channels.php's `Broadcast::channel(...)` eagerly
-  # resolves that driver on every application boot (Illuminate\Foundation\
-  # Configuration\ApplicationBuilder::withBroadcasting() requires routes/
-  # channels.php in an `app->booted()` callback that fires for console boots too,
-  # and BroadcastManager::__call() forwards straight to driver() -> connection()).
-  # With no REVERB_APP_KEY/SECRET at build time (no secrets are ever baked into
-  # this image), that constructs Pusher\Pusher with a null auth key and package:
-  # discover below dies with a TypeError before the image can even be built. `log`
-  # needs no credentials, so it satisfies the eager resolution without requiring
-  # real (or placeholder-secret-shaped) values here. Scoped to THIS stage only —
-  # `runtime` below is `FROM base`, not `FROM vendor`/`FROM build`, so this never
-  # reaches the shipped image or its runtime environment. The underlying eager
-  # resolution is an application-level fragility (any artisan boot without
-  # REVERB_APP_KEY set will hit the same crash outside Docker too); tracked
-  # separately, not something a build-arg should paper over long-term.
   ENV BROADCAST_CONNECTION=log
 
-  # Composer is installed from its signed release artifact, pinned by BOTH version
-  # and SHA-256, rather than copied out of a `composer:<tag>` image: the checksum
-  # makes the binary bit-for-bit reproducible and the build depends on one fewer
-  # external image. Update both ARGs together (checksums are published at
-  # https://getcomposer.org/download/<version>/composer.phar.sha256sum).
   ARG COMPOSER_VERSION=2.10.2
   ARG COMPOSER_SHA256=5ee7125f8a30a34d246cefdc0bc85b8a783b28f2aec968994118512350d28027
 
@@ -184,12 +106,8 @@ x-api-dockerfile: &api-dockerfile |
       chmod +x /usr/local/bin/composer; \
       composer --version
 
-  # Manifests first: this layer is reused until composer.json/lock actually change.
   COPY composer.json composer.lock ./
 
-  # `composer install` (never `update`) resolves EXACTLY composer.lock and fails
-  # if the lock has drifted from composer.json — the frozen-lockfile guarantee.
-  # --no-scripts because artisan cannot boot before the application is copied in.
   RUN --mount=type=cache,target=/tmp/composer-cache,sharing=locked \
       COMPOSER_CACHE_DIR=/tmp/composer-cache \
       COMPOSER_ALLOW_SUPERUSER=1 \
@@ -201,42 +119,10 @@ x-api-dockerfile: &api-dockerfile |
           --no-progress \
           --prefer-dist
 
-  # --------------------------------------------------------------------------
-  # Stage 3: test-vendor — the same locked graph plus Composer dev dependencies
-  # --------------------------------------------------------------------------
-  # This stage intentionally extends the production dependency stage: Composer
-  # verifies the same lockfile, then adds only the locked require-dev packages.
-  # It is never an ancestor of the production runtime image.
-  FROM vendor AS test-vendor
-
-  RUN --mount=type=cache,target=/tmp/composer-cache,sharing=locked \
-      COMPOSER_CACHE_DIR=/tmp/composer-cache \
-      COMPOSER_ALLOW_SUPERUSER=1 \
-      composer install \
-          --no-scripts \
-          --no-autoloader \
-          --no-interaction \
-          --no-progress \
-          --prefer-dist
-
-  # --------------------------------------------------------------------------
-  # Stage 4: build — application source + generated (non-secret) artifacts
-  # --------------------------------------------------------------------------
   FROM vendor AS build
 
-  # .dockerignore keeps secrets, dependencies, and caches out. The shared context
-  # includes the test/static-analysis surface for the `test` target below; remove
-  # it before this stage is copied into the production runtime.
   COPY . .
 
-  # In one layer:
-  #   * create the writable storage tree (git only tracks .gitignore placeholders)
-  #   * optimize the autoloader (PSR-4 fallback kept — no --classmap-authoritative,
-  #     which would break any class the classmap cannot see)
-  #   * bake the package manifest so no runtime write is needed to discover packages
-  #
-  # No `horizon:publish`: Horizon 5.48 serves its dashboard assets from the package
-  # itself and the command now only warns that it is obsolete.
   RUN set -eux; \
       mkdir -p \
           storage/app/private \
@@ -256,179 +142,50 @@ x-api-dockerfile: &api-dockerfile |
           pint.json \
           .editorconfig
 
-  # --------------------------------------------------------------------------
-  # Stage 5: test — source, tests, locked dev tools, and an unprivileged runner
-  # --------------------------------------------------------------------------
-  # This target is used only by Compose's `test` profile. It deliberately retains
-  # Composer and the source/testing surface so Pint, PHPStan, Pest, Artisan, and
-  # targeted one-off commands all run against the exact containerized graph.
-  FROM test-vendor AS test
-
-  COPY . .
-
-  RUN set -eux; \
-      touch .env; \
-      mkdir -p \
-          storage/app/private \
-          storage/app/public \
-          storage/framework/cache/data \
-          storage/framework/sessions \
-          storage/framework/testing \
-          storage/framework/views \
-          storage/logs \
-          bootstrap/cache; \
-      COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize; \
-      php artisan package:discover --ansi; \
-      chown -R www-data:www-data storage bootstrap/cache
-
-  # Test-stage PHP overrides. The base image sets the PRODUCTION request-handler
-  # ceiling (memory_limit = 256M), which a whole-suite run blows through long
-  # before it finishes: `./vendor/bin/pest` died with "Allowed memory size of
-  # 268435456 bytes exhausted" on every branch, so the API suite could not
-  # produce a verdict for anyone. A test runner holds the whole application
-  # graph plus every fixture at once and is not a request; it gets no ceiling.
-  # Kept in the TEST stage only — the runtime stage below still inherits 256M.
-  RUN { \
-          echo 'memory_limit = -1'; \
-          echo 'max_execution_time = 0'; \
-      } > /usr/local/etc/php/conf.d/zz-test.ini
-
-  USER www-data
-
-  EXPOSE 8000
-
-  CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
-
-  # --------------------------------------------------------------------------
-  # Stage 6: runtime — final image (no Composer, no dev deps, no build tools)
-  # --------------------------------------------------------------------------
   FROM base AS runtime
 
-  # www-data (uid 82) already exists in the base image and is the user the FPM pool
-  # was configured for, so no extra account is needed. FPM logs a NOTICE that the
-  # pool's `user`/`group` directives are ignored because the master is not root —
-  # that notice is the CONFIRMATION that this container runs unprivileged.
   COPY --from=build --chown=www-data:www-data /var/www/html /var/www/html
 
-  # The only writable paths the application needs at runtime. Everything else is
-  # owned by root and read-only to the runtime user.
   RUN chmod -R u+rwX,g+rwX storage bootstrap/cache
 
   USER www-data
 
-  # FastCGI, consumed by the `web-server` stage below (or a platform ingress) per
-  # §9.3. Not published to the host in docker-compose.yml: FastCGI is
-  # unauthenticated, so it stays on the private network.
   EXPOSE 9000
 
   CMD ["php-fpm"]
 
-  # --------------------------------------------------------------------------
-  # Stage 7: web-server — the nginx sidecar that fronts php-fpm (§9.3)
-  # --------------------------------------------------------------------------
-  # A SIDECAR, not a combined image: §9.3 allows either, and one process per
-  # container keeps this honest — no supervisord holding two unrelated daemons, the
-  # HTTP tier scales and restarts independently of the PHP pool, and `docker compose
-  # logs nginx` is access logs while `logs app` is PHP. It lives in this Dockerfile
-  # rather than its own so nginx's copy of public/ can only ever come from the same
-  # build as the PHP it proxies to.
-  #
-  # nginx-unprivileged, not library/nginx: it already runs as uid 101 and listens on
-  # 8080, so non-root needs no patching of the base image's assumptions.
   FROM nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6 AS web-server
 
-  # Replaces the image's stock localhost vhost.
   COPY docker/nginx/api.conf /etc/nginx/conf.d/default.conf
 
-  # Laravel's public/ at the SAME absolute path as in the app container: nginx needs
-  # real files on disk for `try_files`, and $$realpath_root must resolve to a path
-  # php-fpm can also open. Only public/ is copied — no source, no vendor, no config.
   COPY --from=build /var/www/html/public /var/www/html/public
 
-  # No `RUN nginx -t` here: nginx resolves `fastcgi_pass app:9000` while testing the
-  # config, and the `app` service does not exist during a build, so the test would
-  # always fail ("host not found in upstream"). Deferring resolution with a
-  # `resolver 127.0.0.11` + variable upstream would make it pass, but 127.0.0.11 is
-  # the Docker-bridge DNS specifically and would be wrong on ECS/Fly/k8s — so the
-  # upstream stays a plain name and the vhost is verified at runtime instead
-  # (`docker compose exec nginx nginx -t`, plus the service's own healthcheck).
 
   EXPOSE 8080
 
 x-web-dockerfile: &web-dockerfile |
-  # SocialReply web — Next.js 16 App Router (DECISIONS.md §4, 01-architecture.md §9.3).
-  #
-  # §9.3 puts web/ in its own `node:20-alpine` container on the CDN/edge tier,
-  # separate from the api/ application tier. DECISIONS.md §4 pins the runtime to
-  # Node 20.9+ (Next.js 16 dropped 18.x), Next.js 16.2 with Turbopack, the React
-  # Compiler, Cache Components and typed routes — all of which are already declared
-  # in package.json / next.config.ts, so this file only has to build them faithfully.
-  #
-  # Same conventions as api/Dockerfile:
-  #   * multi-stage: deps -> build -> runtime
-  #   * base image pinned by DIGEST
-  #   * frozen lockfile (`npm ci`, which fails if package-lock.json has drifted)
-  #   * non-root runtime user (node)
-  #   * no secrets: the only build ARGs are PUBLIC, browser-visible values
-  #
-  # No `# syntax=` directive: nothing here needs an external BuildKit frontend.
 
-  # --------------------------------------------------------------------------
-  # Stage 1: base — Node + the npm that produced the lockfile
-  # --------------------------------------------------------------------------
-  # node:20.20.2-alpine == Node v20.20.2 (>= the 20.9 floor in package.json engines
-  # and >= the 20.17 npm 11 needs).
   FROM node:20.20.2-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS base
 
-  # The bundled npm for Node 20.20.2 is 10.8.2, but package-lock.json was written by
-  # npm 11, which resolves optional peer dependencies differently (npm 10 demands a
-  # hoisted @swc/helpers entry that an npm-11 lock does not carry, and `npm ci`
-  # then refuses with "package.json and package-lock.json are not in sync"). The
-  # installer is therefore pinned to the lockfile's own generation rather than
-  # regenerating the lockfile to suit an older npm. Bump this together with the
-  # lockfile, never separately.
   ARG NPM_VERSION=11.11.0
   RUN npm install -g "npm@$${NPM_VERSION}" && npm -v
 
   WORKDIR /app
 
-  # --------------------------------------------------------------------------
-  # Stage 2: deps — node_modules from the lockfile (dev deps included; the build
-  # needs typescript, tailwind and babel-plugin-react-compiler)
-  # --------------------------------------------------------------------------
   FROM base AS deps
 
-  # Manifests only: this layer is reused until the lockfile actually changes.
   COPY package.json package-lock.json ./
 
-  # `npm ci` installs EXACTLY package-lock.json and fails if it disagrees with
-  # package.json — the frozen-lockfile guarantee. --ignore-scripts keeps a
-  # dependency's postinstall from executing during the image build.
   RUN --mount=type=cache,target=/root/.npm,sharing=locked \
       npm ci --ignore-scripts --no-audit --no-fund
 
-  # --------------------------------------------------------------------------
-  # Stage 3: build — `next build` (Turbopack) into .next/standalone
-  # --------------------------------------------------------------------------
   FROM base AS build
 
-  # NEXT_PUBLIC_* values are INLINED INTO THE CLIENT BUNDLE at build time, which is
-  # why they are build ARGs and not just runtime env: setting them only in
-  # docker-compose `environment:` would leave the browser bundle holding whatever
-  # was baked here. They must therefore be an origin the BROWSER can reach
-  # (http://localhost:<published port>), never a compose service name.
-  #
-  # Nothing secret goes here: everything NEXT_PUBLIC_ is world-readable by design.
   ARG NEXT_PUBLIC_API_BASE_URL=""
   ARG NEXT_PUBLIC_REVERB_HOST=""
   ARG NEXT_PUBLIC_REVERB_PORT=""
   ARG NEXT_PUBLIC_REVERB_SCHEME="http"
   ARG NEXT_PUBLIC_REVERB_APP_KEY=""
-  # The marketing SEO surface (src/lib/seo/site-config.ts) throws at build time
-  # in production if this is unset and VERCEL_URL is absent — `next build` always
-  # forces NODE_ENV=production internally, so the dev-fallback branch never
-  # triggers here even for a local compose build. Same browser-reachable-origin
-  # rule as NEXT_PUBLIC_API_BASE_URL above: the web service's own published port.
   ARG NEXT_PUBLIC_BASE_URL=""
   ENV NEXT_PUBLIC_API_BASE_URL=$$NEXT_PUBLIC_API_BASE_URL \
       NEXT_PUBLIC_REVERB_HOST=$$NEXT_PUBLIC_REVERB_HOST \
@@ -441,78 +198,26 @@ x-web-dockerfile: &web-dockerfile |
       NEXT_TELEMETRY_DISABLED=1
 
   COPY --from=deps /app/node_modules ./node_modules
-  # .dockerignore keeps .env*, node_modules, .next and test artifacts out.
   COPY . .
 
-  # `next build` runs typegen for typedRoutes itself, so there is no separate step.
   RUN npm run build
 
-  # --------------------------------------------------------------------------
-  # Stage 4: test — complete source and dev dependencies on the official
-  # Playwright image whose browser revision exactly matches package-lock.json.
-  # This target is built explicitly; it is never part of the runtime image.
-  # --------------------------------------------------------------------------
-  FROM mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48 AS test
-
-  ARG NPM_VERSION=11.11.0
-  RUN npm install -g "npm@$${NPM_VERSION}" && npm -v
-
-  ENV CI=1 \
-      NODE_ENV=test \
-      NEXT_TELEMETRY_DISABLED=1 \
-      PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-
-  WORKDIR /app
-
-  # The official image provides the non-root `pwuser`. Giving that actor the
-  # worktree before `npm ci` also keeps generated .next, Vitest, and Playwright
-  # artifacts writable without running the test runner as root.
-  RUN chown pwuser:pwuser /app
-  USER pwuser
-
-  COPY --chown=pwuser:pwuser package.json package-lock.json ./
-  RUN npm ci --ignore-scripts --no-audit --no-fund
-
-  # Tests, configs, messages, and application source all stay in this target.
-  # The runtime stage below continues to copy only the standalone build output.
-  COPY --chown=pwuser:pwuser . .
-
-  # Fail the image build if package-lock.json and the browser image ever drift.
-  RUN test "$$(node -p "require('@playwright/test/package.json').version")" = "1.61.1"
-
-  CMD ["npm", "test"]
-
-  # --------------------------------------------------------------------------
-  # Stage 5: runtime — standalone server only (no dev deps, no source, no build
-  # tooling; started with `node server.js`, so npm is never invoked here)
-  # --------------------------------------------------------------------------
   FROM node:20.20.2-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS runtime
 
-  # tini: PID 1 that forwards SIGTERM to node and reaps orphans, so a rolling
-  # restart drains instead of dropping in-flight renders.
   RUN apk add --no-cache tini
 
   WORKDIR /app
 
-  # The standalone server resolves marketing metadata at request time, so the
-  # public origin must survive the build-stage boundary as runtime configuration.
   ARG NEXT_PUBLIC_BASE_URL=""
 
-  # HOSTNAME is what Next's standalone server binds to: 0.0.0.0 so the container is
-  # reachable from the compose network instead of only from inside itself.
   ENV NODE_ENV=production \
       NEXT_TELEMETRY_DISABLED=1 \
       NEXT_PUBLIC_BASE_URL=$$NEXT_PUBLIC_BASE_URL \
       PORT=3000 \
       HOSTNAME=0.0.0.0
 
-  # The standalone bundle: server.js plus the traced subset of node_modules.
   COPY --from=build --chown=node:node /app/.next/standalone ./
-  # Client assets are NOT part of the standalone trace and must be copied beside it.
   COPY --from=build --chown=node:node /app/.next/static ./.next/static
-  # Message catalogues are read from disk per request by src/i18n/request.ts
-  # (path.join(process.cwd(), 'messages')), so static tracing never sees them.
-  # Without this COPY every localised route would 404 at runtime.
   COPY --from=build --chown=node:node /app/messages ./messages
 
   USER node
@@ -530,9 +235,12 @@ x-api-build: &api-build
     - source: git_auth_token
       target: GIT_AUTH_TOKEN
 
-x-api-image: &api-image
-  build: *api-build
+x-api-runtime-image: &api-runtime-image
   image: socialreply-api-${COOLIFY_RESOURCE_UUID:-local}:${SOCIAL_REPLY_SOURCE_REF:?required}
+
+x-api-image: &api-image
+  <<: *api-runtime-image
+  build: *api-build
 
 x-api-environment: &api-environment
   APP_NAME: SocialReply
@@ -729,7 +437,7 @@ services:
         psql -d socialreply -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector"
 
   migrate:
-    <<: [*service-defaults, *api-image]
+    <<: [*service-defaults, *api-runtime-image]
     restart: "no"
     command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
     environment: *api-environment
@@ -801,7 +509,7 @@ services:
           memory: 128M
 
   horizon:
-    <<: [*service-defaults, *api-image]
+    <<: [*service-defaults, *api-runtime-image]
     command: ["php", "artisan", "horizon"]
     environment: *api-environment
     networks: [internal, shared]
@@ -822,7 +530,7 @@ services:
           memory: 2G
 
   scheduler:
-    <<: [*service-defaults, *api-image]
+    <<: [*service-defaults, *api-runtime-image]
     command: ["php", "artisan", "schedule:work"]
     environment: *api-environment
     networks: [internal, shared]
@@ -843,7 +551,7 @@ services:
           memory: 512M
 
   reverb:
-    <<: [*service-defaults, *api-image]
+    <<: [*service-defaults, *api-runtime-image]
     labels:
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]

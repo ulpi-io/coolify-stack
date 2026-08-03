@@ -160,7 +160,15 @@ grep -Fq 'command: ["php", "artisan", "migrate", "--force", "--no-interaction"]'
   exit 1
 }
 [[ $(grep -Fc 'dockerfile_inline: *api-dockerfile' platforms/social-reply/compose.yaml) == 2 ]] || {
-  echo "SocialReply API and nginx builds must inline the pinned upstream Dockerfile for Coolify compatibility" >&2
+  echo "SocialReply API and nginx builds must inline the pinned upstream production stages for Coolify compatibility" >&2
+  exit 1
+}
+[[ $(grep -Fc '<<: [*service-defaults, *api-image]' platforms/social-reply/compose.yaml) == 1 ]] || {
+  echo "SocialReply must build its shared API runtime image exactly once" >&2
+  exit 1
+}
+[[ $(grep -Fc '<<: [*service-defaults, *api-runtime-image]' platforms/social-reply/compose.yaml) == 4 ]] || {
+  echo "SocialReply one-shot and worker services must reuse the API runtime image without duplicated builds" >&2
   exit 1
 }
 grep -Fq 'dockerfile_inline: *web-dockerfile' platforms/social-reply/compose.yaml || {
@@ -215,6 +223,13 @@ for slug in "${platforms[@]}"; do
     exit 1
   }
   GIT_AUTH_TOKEN=${GIT_AUTH_TOKEN:-validation-only} docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config -q
+  if [[ "$slug" == social-reply ]]; then
+    compose_payload_bytes=$(GIT_AUTH_TOKEN=${GIT_AUTH_TOKEN:-validation-only} docker compose --env-file "$env_file" -f "platforms/$slug/compose.yaml" config | base64 | wc -c | tr -d ' ')
+    (( compose_payload_bytes < 120000 )) || {
+      echo "SocialReply's encoded Compose payload is $compose_payload_bytes bytes; Coolify 4.1.2 requires less than 120000" >&2
+      exit 1
+    }
+  fi
   while IFS= read -r service; do
     case "$service" in
       mysql|postgres|postgresql|redis|valkey|valkey-cache|valkey-queue|minio|qdrant|rabbitmq|elasticsearch|temporal|mailpit)
