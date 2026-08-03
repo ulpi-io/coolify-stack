@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo_root"
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply)
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 docker compose version >/dev/null
@@ -31,6 +31,7 @@ for generator in platforms/*/generate-env.sh; do
     n8n) expected_app_url=https://workflow.con.fyi ;;
     twenty) expected_app_url=https://crm.con.fyi ;;
     buzz) expected_app_url=https://buzz.con.fyi ;;
+    social-reply) expected_app_url=https://api.socialreply.com ;;
     *) expected_app_url='https://www.*' ;;
   esac
   if [[ "$expected_app_url" = 'https://www.*' ]]; then
@@ -57,6 +58,10 @@ grep -Fq '{"name":"dashboard","domain":"https://www.clavinci.com"},{"name":"api"
 }
 grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","domain":"https://api.albert.con.fyi"}' scripts/create-resources.sh || {
   echo "Albert web/API domain mapping is missing" >&2
+  exit 1
+}
+grep -Fq '{"name":"web","domain":"https://app.socialreply.com"},{"name":"nginx","domain":"https://api.socialreply.com"},{"name":"reverb","domain":"https://ws.socialreply.com"}' scripts/create-resources.sh || {
+  echo "SocialReply web/API/Reverb domain mapping is missing" >&2
   exit 1
 }
 
@@ -91,7 +96,8 @@ for compose_file in \
   platforms/nudgra-oss/compose.yaml \
   platforms/n8n/compose.yaml \
   platforms/twenty/compose.yaml \
-  platforms/buzz/compose.yaml
+  platforms/buzz/compose.yaml \
+  platforms/social-reply/compose.yaml
 do
   # Match the literal Compose-time interpolation expression.
   # shellcheck disable=SC2016
@@ -139,11 +145,35 @@ grep -Fq 'provision buzz-media "$$BUZZ_S3_ACCESS_KEY" "$$BUZZ_S3_SECRET_KEY"' in
   echo "Shared MinIO must provision Buzz's isolated media bucket" >&2
   exit 1
 }
+# SocialReply requires its locked PostgreSQL 17 + pgvector contract rather than
+# silently targeting the shared PostgreSQL 16 service.
+grep -Fq 'pgvector/pgvector@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply must pin the verified PostgreSQL 17 plus pgvector image" >&2
+  exit 1
+}
+grep -Fq 'SOCIAL_REPLY_SOURCE_REF=09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply must pin the audited source commit" >&2
+  exit 1
+}
+grep -Fq 'command: ["php", "artisan", "migrate", "--force", "--no-interaction"]' platforms/social-reply/compose.yaml || {
+  echo "SocialReply must run one release migration service" >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+grep -Fq 'user social-reply on >$$SOCIAL_REPLY_QUEUE_PASSWORD ~social-reply:* &social-reply:* +@all' infrastructure/compose.yaml || {
+  echo "Shared Redis must restrict SocialReply to social-reply-prefixed keys and channels" >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+grep -Fq 'provision social-reply "$$SOCIAL_REPLY_S3_ACCESS_KEY" "$$SOCIAL_REPLY_S3_SECRET_KEY"' infrastructure/compose.yaml || {
+  echo "Shared MinIO must provision SocialReply's isolated bucket" >&2
+  exit 1
+}
 
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
-[[ "$compose_count" = 18 ]] || { echo "Expected 18 Compose files, found $compose_count" >&2; exit 1; }
-[[ "$generator_count" = 18 ]] || { echo "Expected 18 env generators, found $generator_count" >&2; exit 1; }
+[[ "$compose_count" = 19 ]] || { echo "Expected 19 Compose files, found $compose_count" >&2; exit 1; }
+[[ "$generator_count" = 19 ]] || { echo "Expected 19 env generators, found $generator_count" >&2; exit 1; }
 
 bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
 if command -v shellcheck >/dev/null 2>&1; then
@@ -158,7 +188,7 @@ trap cleanup EXIT
 
 infrastructure/generate-env.sh --output-dir "$validation_dir" >/dev/null
 fragment_count=$(find "$validation_dir/platforms" -type f -name '*.shared.env' | wc -l | tr -d ' ')
-[[ "$fragment_count" = 17 ]] || { echo "Expected 17 shared fragments, found $fragment_count" >&2; exit 1; }
+[[ "$fragment_count" = 18 ]] || { echo "Expected 18 shared fragments, found $fragment_count" >&2; exit 1; }
 
 docker compose --env-file "$validation_dir/infrastructure.env" -f infrastructure/compose.yaml config -q
 
@@ -192,4 +222,4 @@ if rg -n ':(latest|stable)([[:space:]]|$)' "$validation_dir" >/dev/null; then
   exit 1
 fi
 
-echo "Validated 18 Compose files, 18 generators, and 17 platform fragments."
+echo "Validated 19 Compose files, 19 generators, and 18 platform fragments."

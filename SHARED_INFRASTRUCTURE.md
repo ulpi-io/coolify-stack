@@ -14,13 +14,13 @@ The following capabilities are reused by multiple compatible applications. Shari
 | `postgres` | PostgreSQL 16 | Plane, Postiz, Nudgra, n8n, Twenty, Buzz, Postiz Temporal | Primary relational database only for applications that already use PostgreSQL | One database, `NOSUPERUSER` role, schema ownership, and connection limit per application |
 | `valkey` | Valkey 8 | Plane | Plane's existing Valkey-compatible cache contract and future verified Valkey consumers | Dedicated ACL user; disposable cache policy |
 | `redis-cache` | Redis 7.2 | Twenty; Postiz cache when classified; OpenPay optional | Disposable cache, sessions, rate limits, and short-lived locks for Redis-bound applications | One ACL user per application; key prefixes where supported |
-| `redis-queue` | Redis 7.2 | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz; OpenPay optional | Durable queues, Horizon/BullMQ jobs, retries, pub/sub, presence, and workflow state | One ACL user per application; AOF `everysec`, `noeviction` |
-| `minio` | Shared MinIO S3-compatible object storage | Record Cloud, Plane, Buzz; Kensi AI, OpenPay, and Twenty when S3 storage is enabled; future S3-compatible consumers | Uploads, recordings, attachments, and application objects | One bucket, service account, and least-privilege bucket policy per application |
+| `redis-queue` | Redis 7.2 | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz, SocialReply; OpenPay optional | Durable queues, Horizon/BullMQ jobs, retries, pub/sub, presence, and workflow state | One ACL user per application; AOF `everysec`, `noeviction` |
+| `minio` | Shared MinIO S3-compatible object storage | Record Cloud, Plane, Buzz, SocialReply; Kensi AI, OpenPay, and Twenty when S3 storage is enabled; future S3-compatible consumers | Uploads, recordings, attachments, and application objects | One bucket, service account, and least-privilege bucket policy per application |
 | `qdrant` | Qdrant | Albert | Vector search for Albert and future applications | Separate collection namespace, ownership record, resource budget, snapshots, and restore test per application |
 | `rabbitmq` | RabbitMQ | Plane | Durable message brokering for Plane and future applications | Separate vhost, user, permissions, policies, quotas, and monitoring per application |
 | `elasticsearch` | Elasticsearch | Postiz Temporal | Search and indexing for Postiz/Temporal and future applications | Separate index/alias prefix, role or API key, ILM policy, resource budget, and snapshot scope per application |
 | `temporal` | Temporal | Postiz | Durable workflow orchestration for Postiz and future applications | Separate namespace, retention policy, search attributes, worker task queues, and visibility scope per application |
-| `mailpit` | Mailpit `v1.30.0` | Record Cloud, OpenPay, Twenty, and every further deployment whose environment or Compose exposes SMTP/mail transport settings | Shared capture and inspection of application-generated email without external delivery | Private shared-network SMTP endpoint; authenticated/private UI; bounded persistent message store; no outbound relay |
+| `mailpit` | Mailpit `v1.30.0` | Record Cloud, OpenPay, Twenty, SocialReply, and every further deployment whose environment or Compose exposes SMTP/mail transport settings | Shared capture and inspection of application-generated email without external delivery | Private shared-network SMTP endpoint; authenticated/private UI; bounded persistent message store; no outbound relay |
 | `monitoring` | Monitoring and alerting platform | All production services and applications | Health, capacity, queue, worker, backup, and certificate monitoring | Application/service labels, dashboards, alert routes, and ownership |
 | `backup` | Scheduled off-server backup capability | Every stateful production service | Database dumps/snapshots, object-storage protection, Qdrant/Elasticsearch snapshots, and restore testing | Separate retention, encryption, restore procedure, and evidence per application/service |
 
@@ -34,7 +34,7 @@ The object-storage implementation is **one shared MinIO deployment** managed by 
 - Every application receives a dedicated MinIO service account and a policy restricted to its bucket and required operations.
 - The S3 API is available only through the shared application network unless a specific application proves that a public endpoint is required for direct client uploads.
 - The MinIO administration console is restricted to trusted operators and is not a public application service.
-- Record Cloud, Plane, and Buzz are required consumers.
+- Record Cloud, Plane, Buzz, and SocialReply are required consumers.
 - Kensi AI, OpenPay, and Twenty use the same MinIO service when their existing S3 storage mode is enabled.
 - Future applications with an S3-compatible storage contract use this shared MinIO service by default.
 - MinIO data is stateful and must be included in the off-server backup and restore-test design; storing the only backup inside the same MinIO deployment is not a backup.
@@ -58,6 +58,23 @@ PostgreSQL 16 is the common major for the shared PostgreSQL service. It directly
 One PostgreSQL 16 server process does not mean one shared schema. Each application receives its own database and non-superuser owner role. Temporal receives its required persistence databases and roles separately from the Postiz application database. Extensions are enabled only in the database that needs them.
 
 No repository recipe's PostgreSQL data volume is reused. The shared PostgreSQL 16 service initializes a new volume, and each application initializes a new isolated database through its pinned schema migrations.
+
+## SocialReply Dedicated PostgreSQL Exception
+
+SocialReply does not target the shared PostgreSQL 16 process. The audited source
+contract at commit `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e` explicitly locks
+PostgreSQL 17 plus pgvector, enables the `vector` extension during migration,
+and contains vector columns with an HNSW index. This satisfies the
+shared-by-default policy's incompatible-major/extension exception.
+
+`platforms/social-reply` therefore owns one private PostgreSQL 17 plus pgvector
+container and persistent volume. The image is pinned to the verified
+multi-architecture digest for `pgvector/pgvector:0.8.1-pg17-bookworm`. No host
+port or public route is published. SocialReply still reuses shared Redis,
+MinIO, Mailpit, monitoring, and off-server backup capabilities. Reconsider
+sharing only after the common PostgreSQL platform is deliberately upgraded to
+17 with pgvector and SocialReply's migrations, vector queries, backup, and
+restore gates pass on that target.
 
 ## Shared MySQL 8.4 LTS Compatibility
 
@@ -102,6 +119,7 @@ Current repository/recipe evidence:
 | Record Cloud | Repository `.env.example` explicitly defines Mailpit SMTP and sender settings | Required |
 | OpenPay | API `.env.example` defines Laravel mail transport host, port, username, password, and sender settings | Required; change the mailer from `log` to `smtp` for the deployed environment |
 | Twenty | Current Coolify recipe exposes `EMAIL_DRIVER`, `EMAIL_SMTP_HOST`, `EMAIL_SMTP_PORT`, `EMAIL_SMTP_USER`, and `EMAIL_SMTP_PASSWORD` | Required; set `EMAIL_DRIVER=smtp` |
+| SocialReply | Root and API env contracts define Laravel SMTP transport; API, Horizon, and scheduler send mail | Required; target shared `mailpit:1025` until an external delivery provider is selected |
 | Any additional application | SMTP/mail variables discovered in its resolved environment or Compose during deployment preparation | Required automatically |
 
 ### Deployment shape
@@ -167,6 +185,7 @@ The portfolio runs both technologies: Valkey for Plane, whose official stack alr
 | Plane | Valkey | RabbitMQ | Plane's official stack already uses Valkey and RabbitMQ |
 | Postiz | Redis queue service | Redis queue service | Its pinned fork uses Redis 7.2 with AOF, so the durable policy is preserved |
 | Buzz | Redis queue service | Redis pub/sub and short-lived coordination | Upstream's production bundle enables AOF; all inspected keys and channels use the `buzz:*` prefix, allowing a restricted ACL user |
+| SocialReply | Redis queue service | Redis queue service; Horizon and Reverb pub/sub | Laravel supports an ACL username and explicit Redis/cache/Horizon/Reverb prefixes; the recipe restricts keys and channels to `social-reply:*` |
 | n8n | No | Redis queue service | Queue mode points BullMQ at Redis |
 | Twenty | Redis cache service | PostgreSQL `pg-boss` | Its recipe uses Redis for cache and PostgreSQL for jobs |
 | OpenPay | Database by default | Database by default | Redis remains available if Horizon/Redis modes are enabled later |
@@ -180,7 +199,7 @@ The portfolio runs both technologies: Valkey for Plane, whose official stack alr
 
 Because this is greenfield, every cache and queue starts empty; no Redis or Valkey persistence is migrated. Production acceptance still requires cache, enqueue/consume/retry, ACL, and queue-liveness checks.
 
-The inspected Laravel applications expose one Redis host/username/password tuple for both the default and cache connections, so their generated recipes place both workloads on durable `redis-queue`. Plane uses Valkey. Twenty uses `redis-cache`. Postiz uses `redis-queue` because its current Redis recipe enables AOF.
+The inspected Laravel applications expose one Redis host/username/password tuple for both the default and cache connections, so their generated recipes place both workloads on durable `redis-queue`. Plane uses Valkey. Twenty uses `redis-cache`. Postiz uses `redis-queue` because its current Redis recipe enables AOF. SocialReply also uses `redis-queue`, with explicit `social-reply:*` key/channel prefixes for its ACL boundary.
 
 ## Shared Durable Execution Services
 
@@ -190,7 +209,7 @@ The stack provides multiple shared durable-execution technologies because applic
 | --- | --- | --- | --- |
 | `temporal` | Long-running durable workflows, retries, timers, and workflow state | Postiz is the first consumer | Namespace, task queues, retention, search attributes, worker identity, and monitoring per application |
 | `rabbitmq` | AMQP message queues and event delivery | Plane is the first consumer | Vhost, user, permissions, policies, quotas, dead-letter configuration, and monitoring per application |
-| `redis-queue` | Redis queues, pub/sub, and coordination such as Laravel Horizon, BullMQ, n8n queue mode, and Buzz presence/events | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz | ACL user, key/channel prefix where supported, queue names, persistence budget, and monitoring per application |
+| `redis-queue` | Redis queues, pub/sub, and coordination such as Laravel Horizon, BullMQ, n8n queue mode, Buzz presence/events, and SocialReply realtime | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz, SocialReply | ACL user, key/channel prefix where supported, queue names, persistence budget, and monitoring per application |
 | Shared PostgreSQL | Database-backed job queues | Twenty uses `pg-boss`; OpenPay currently defaults to database queues | Separate application database/role; job tables remain inside the application's database |
 
 Future software selects the shared service matching its native, supported queue/workflow backend. Existing applications are not rewritten from one durable-execution technology to another merely to standardize the stack.
@@ -237,6 +256,7 @@ Statuses:
 | n8n | Shared PostgreSQL 16 after fresh schema validation | None | Shared Valkey queue; n8n worker and external runners | Fresh local n8n volume; external binary storage Pending | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 6, queue mode, worker, and task runners; no data is migrated |
 | Twenty | Shared PostgreSQL 16 after fresh schema validation | Shared Redis cache | PostgreSQL `pg-boss`; no Redis queue required by current recipe | Shared object storage when S3 mode is enabled | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 7, worker, local storage, and `pg-boss`; no data is migrated |
 | Buzz | Shared PostgreSQL 16 after fresh SQLx migration validation | Shared durable Redis for pub/sub, presence, replay protection, and rate limits | Redis pub/sub; no separate worker observed | Shared object storage with isolated `buzz-media` bucket; app-scoped git scratch volume | None observed | Official production Compose uses PostgreSQL 17, Redis 7 with AOF, MinIO, and a git volume; the recipe preserves these contracts through shared isolated services |
+| SocialReply | Dedicated PostgreSQL 17 plus pgvector | Shared durable Redis | Shared Redis; Laravel Horizon and Reverb remain application processes | Shared object storage with isolated `social-reply` bucket | pgvector remains inside its dedicated database | Audited source explicitly locks PostgreSQL 17 plus pgvector and contains vector schema/indexes; API, nginx, Horizon, scheduler, Reverb, and Next.js remain separate production processes |
 
 ## Database Engine Preservation Policy
 
@@ -254,6 +274,7 @@ Current engine groups:
 | Engine | Applications |
 | --- | --- |
 | PostgreSQL 16 target | Plane, Postiz, Nudgra OSS, n8n, Twenty, Buzz, plus Postiz's Temporal databases |
+| Dedicated PostgreSQL 17 plus pgvector | SocialReply |
 | MySQL 8.4 LTS target | Lokei, Albert, Record Cloud, Insight/Clavinci, Kensi AI, AgentsHQ, Togglebox MySQL edition, OpenPay, OpenKudos/TeamToast |
 | No application database observed | Ploon and Open Growth Group website |
 

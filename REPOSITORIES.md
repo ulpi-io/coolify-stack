@@ -4,7 +4,7 @@ This is the authoritative repository scope for the Coolify deployment system.
 
 The repository-grounded service inventory, application dependency matrix, shared/dedicated boundaries, and database-engine preservation policy are defined in `SHARED_INFRASTRUCTURE.md`. Coolify is the external deployment platform; it is not part of the OGG infrastructure stack.
 
-Ownership for repositories 1-15 below: **personal / first-party**.
+Ownership for repositories 1-15 and 22 below: **personal / first-party**.
 
 Environment scope for every deployment unit: **production only**.
 
@@ -29,6 +29,7 @@ Environment scope for every deployment unit: **production only**.
 | n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://workflow.con.fyi` | Coolify route |
 | Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Coolify route |
 | Buzz | `block/buzz` relay image and desktop clients | `wss://buzz.con.fyi` | Planned Coolify route; DNS pending |
+| SocialReply | `ulpi-io/social-reply` | `https://app.socialreply.com`, `https://api.socialreply.com`, `wss://ws.socialreply.com` | Planned Coolify routes; DNS must be verified before deployment |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 
@@ -100,3 +101,10 @@ Domains not listed in this table are still to be collected or verified from the 
     - Current image: `ghcr.io/block/buzz@sha256:12763e38fd99fe8f4e63466a08ea8e3afbda4da0ebd1f51f0b57d78f9b082abe`
     - Production route: `wss://buzz.con.fyi`
     - Backing services: isolated shared PostgreSQL database/role, Redis ACL user, and MinIO bucket/service account
+22. https://github.com/ulpi-io/social-reply
+    - Application: SocialReply
+    - Ownership: personal / first-party
+    - Deployment class: source-built Laravel API, nginx, Horizon, scheduler, Reverb, and Next.js web stack
+    - Audited source ref: `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`
+    - Production routes: `https://app.socialreply.com`, `https://api.socialreply.com`, `wss://ws.socialreply.com`
+    - Backing services: dedicated PostgreSQL 17 plus pgvector database; isolated shared Redis ACL user and MinIO bucket/service account; shared Mailpit SMTP

@@ -1,0 +1,411 @@
+name: social-reply
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-api-build: &api-build
+  context: https://github.com/ulpi-io/social-reply.git#${SOCIAL_REPLY_SOURCE_REF:?required}:api
+  dockerfile: Dockerfile
+  target: runtime
+  secrets:
+    - source: git_auth_token
+      target: GIT_AUTH_TOKEN
+
+x-api-image: &api-image
+  build: *api-build
+  image: socialreply-api-${COOLIFY_RESOURCE_UUID:-local}:${SOCIAL_REPLY_SOURCE_REF:?required}
+
+x-api-environment: &api-environment
+  APP_NAME: SocialReply
+  APP_ENV: production
+  APP_KEY: ${APP_KEY:?required}
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:?required}
+  APP_FRONTEND_URL: ${APP_FRONTEND_URL:?required}
+  OPS_ADMIN_EMAILS: ${OPS_ADMIN_EMAILS:?required}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: info
+
+  DB_CONNECTION: pgsql
+  DB_HOST: social-reply-postgres
+  DB_PORT: "5432"
+  DB_DATABASE: ${DB_DATABASE:?required}
+  DB_USERNAME: ${DB_USERNAME:?required}
+  DB_PASSWORD: ${DB_PASSWORD:?required}
+
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: ${QUEUE_HOST:?required}
+  REDIS_PORT: ${QUEUE_PORT:?required}
+  REDIS_USERNAME: ${QUEUE_USERNAME:?required}
+  REDIS_PASSWORD: ${QUEUE_PASSWORD:?required}
+  REDIS_DB: "0"
+  REDIS_CACHE_DB: "1"
+  REDIS_PREFIX: ${QUEUE_PREFIX:?required}
+  CACHE_STORE: redis
+  CACHE_PREFIX: "social-reply:cache:"
+  SESSION_DRIVER: redis
+  SESSION_DOMAIN: .socialreply.com
+  SESSION_SECURE_COOKIE: "true"
+  SESSION_SAME_SITE: lax
+  QUEUE_CONNECTION: redis
+  HORIZON_PREFIX: "social-reply:horizon:"
+
+  SANCTUM_STATEFUL_DOMAINS: app.socialreply.com
+  CORS_ALLOWED_ORIGINS: ${APP_FRONTEND_URL:?required}
+
+  FILESYSTEM_DISK: s3
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:?required}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:?required}
+  AWS_DEFAULT_REGION: ${S3_REGION:?required}
+  AWS_BUCKET: ${S3_BUCKET:?required}
+  AWS_ENDPOINT: ${S3_ENDPOINT:?required}
+  AWS_URL: ${S3_ENDPOINT:?required}/${S3_BUCKET:?required}
+  AWS_USE_PATH_STYLE_ENDPOINT: ${S3_PATH_STYLE:?required}
+
+  MAIL_MAILER: smtp
+  MAIL_SCHEME: "null"
+  MAIL_HOST: ${SMTP_HOST:?required}
+  MAIL_PORT: ${SMTP_PORT:?required}
+  MAIL_USERNAME: "null"
+  MAIL_PASSWORD: "null"
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?required}
+  MAIL_FROM_NAME: SocialReply
+
+  BROADCAST_CONNECTION: reverb
+  REVERB_APP_ID: ${REVERB_APP_ID:?required}
+  REVERB_APP_KEY: ${REVERB_APP_KEY:?required}
+  REVERB_APP_SECRET: ${REVERB_APP_SECRET:?required}
+  REVERB_HOST: reverb
+  REVERB_PORT: "8080"
+  REVERB_SCHEME: http
+  REVERB_SERVER_HOST: 0.0.0.0
+  REVERB_SERVER_PORT: "8080"
+  REVERB_SCALING_ENABLED: "true"
+  REVERB_SCALING_CHANNEL: social-reply:reverb
+  REVERB_ALLOWED_ORIGINS: ${APP_FRONTEND_URL:?required}
+
+  BILLING_ENABLED: ${BILLING_ENABLED:-false}
+  BILLING_CATALOG_PUBLISH_ENABLED: ${BILLING_CATALOG_PUBLISH_ENABLED:-false}
+  STRIPE_KEY:
+  STRIPE_SECRET:
+  STRIPE_WEBHOOK_SECRET:
+  STRIPE_WEBHOOK_TOLERANCE: ${STRIPE_WEBHOOK_TOLERANCE:?required}
+  STRIPE_API_VERSION: ${STRIPE_API_VERSION:?required}
+  STRIPE_CHECKOUT_CONFIGURATION_ID:
+  STRIPE_PORTAL_CONFIGURATION_ID:
+  AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai}
+  AI_DEFAULT_MODEL: ${AI_DEFAULT_MODEL:-gpt-5.4}
+  AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+  AI_EMBEDDING_DIMENSIONS: "1536"
+  OPENAI_API_KEY:
+  ANTHROPIC_API_KEY:
+  DEEPSEEK_API_KEY:
+  OPENROUTER_API_KEY:
+  OPENROUTER_URL: ${OPENROUTER_URL:?required}
+  GEMINI_API_KEY:
+  GOOGLE_CLIENT_ID:
+  GOOGLE_CLIENT_SECRET:
+  GOOGLE_REDIRECT_URI: ${APP_URL:?required}/api/v1/auth/google/callback
+  GOOGLE_SHEETS_REDIRECT_URI: ${APP_URL:?required}/api/v1/integrations/google_sheets/oauth/callback
+  HUBSPOT_CLIENT_ID:
+  HUBSPOT_CLIENT_SECRET:
+  HUBSPOT_REDIRECT_URI: ${APP_URL:?required}/api/v1/integrations/hubspot/oauth/callback
+  MAILCHIMP_CLIENT_ID:
+  MAILCHIMP_CLIENT_SECRET:
+  MAILCHIMP_REDIRECT_URI: ${APP_URL:?required}/api/v1/integrations/mailchimp/oauth/callback
+  META_APP_ID:
+  META_APP_SECRET:
+  META_WEBHOOK_VERIFY_TOKEN:
+  META_DATA_DELETION_STATUS_ORIGIN: ${APP_FRONTEND_URL:?required}
+  META_GRAPH_API_VERSION: v25.0
+  WHATSAPP_APP_ID:
+  WHATSAPP_APP_SECRET:
+  WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID:
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN:
+  WHATSAPP_GRAPH_API_VERSION: v25.0
+  WHATSAPP_TEMPLATE_MEDIA_DISK: s3
+  TELEGRAM_API_BASE_URI: https://api.telegram.org
+  TWILIO_ACCOUNT_SID:
+  TWILIO_AUTH_TOKEN:
+  TWILIO_MESSAGING_SERVICE_SID:
+  TWILIO_FROM_NUMBER:
+  TIKTOK_BUSINESS_APP_ID:
+  TIKTOK_BUSINESS_APP_SECRET:
+  TIKTOK_BUSINESS_REDIRECT_URI: ${APP_URL:?required}/api/v1/channel-accounts/tiktok/callback
+  TIKTOK_BUSINESS_API_VERSION: v1.3
+  TIKTOK_BUSINESS_API_BASE_URL: https://business-api.tiktok.com/open_api/v1.3
+  TIKTOK_ADS_APP_ID:
+  TIKTOK_ADS_SECRET:
+  TIKTOK_ADS_REDIRECT_URI: ${APP_URL:?required}/api/v1/integrations/tiktok_ads/oauth/callback
+  TIKTOK_ADS_SCOPES:
+  YOUTUBE_CLIENT_ID:
+  YOUTUBE_CLIENT_SECRET:
+  YOUTUBE_REDIRECT_URI: ${APP_URL:?required}/api/v1/channel-accounts/youtube/callback
+  YOUTUBE_OAUTH_AUTHORIZE_URL: https://accounts.google.com/o/oauth2/v2/auth
+  YOUTUBE_TOKEN_URL: https://oauth2.googleapis.com/token
+  YOUTUBE_REVOKE_URL: https://oauth2.googleapis.com/revoke
+  YOUTUBE_API_BASE_URL: https://www.googleapis.com/youtube/v3
+  YOUTUBE_BOOTSTRAP_HOURS: ${YOUTUBE_BOOTSTRAP_HOURS:?required}
+  YOUTUBE_POLL_INTERVAL_SECONDS: ${YOUTUBE_POLL_INTERVAL_SECONDS:?required}
+  YOUTUBE_POLL_OVERLAP_SECONDS: ${YOUTUBE_POLL_OVERLAP_SECONDS:?required}
+  YOUTUBE_POLL_MAX_PAGES: ${YOUTUBE_POLL_MAX_PAGES:?required}
+  YOUTUBE_POLL_MAX_COMMENTS: ${YOUTUBE_POLL_MAX_COMMENTS:?required}
+  YOUTUBE_POLL_MAX_RUNTIME_SECONDS: ${YOUTUBE_POLL_MAX_RUNTIME_SECONDS:?required}
+  YOUTUBE_SWEEP_BATCH_SIZE: ${YOUTUBE_SWEEP_BATCH_SIZE:?required}
+  YOUTUBE_VIDEO_MAX_PAGES: ${YOUTUBE_VIDEO_MAX_PAGES:?required}
+  YOUTUBE_VIDEO_MAX_ITEMS: ${YOUTUBE_VIDEO_MAX_ITEMS:?required}
+  YOUTUBE_FAILURE_BACKOFF_SECONDS: ${YOUTUBE_FAILURE_BACKOFF_SECONDS:?required}
+  YOUTUBE_QUOTA_BUDGET_UNITS: ${YOUTUBE_QUOTA_BUDGET_UNITS:?required}
+  YOUTUBE_REPLY_RESERVE_UNITS: ${YOUTUBE_REPLY_RESERVE_UNITS:?required}
+  RESEND_API_KEY:
+  RESEND_WEBHOOK_SECRET:
+
+services:
+  social-reply-postgres:
+    <<: *service-defaults
+    image: ${POSTGRES_IMAGE:?required}
+    shm_size: 256mb
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?required}
+      POSTGRES_DB: postgres
+    volumes:
+      - social-reply-postgres-data:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  database-bootstrap:
+    image: ${POSTGRES_IMAGE:?required}
+    restart: "no"
+    environment:
+      PGHOST: social-reply-postgres
+      PGUSER: postgres
+      PGPASSWORD: ${DB_ADMIN_PASSWORD:?required}
+      DB_PASSWORD: ${DB_PASSWORD:?required}
+    networks: [internal]
+    depends_on:
+      social-reply-postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        case "$$DB_PASSWORD" in *[!0-9a-f]*) echo "DB_PASSWORD must be lowercase hex" >&2; exit 1;; esac
+        if ! psql -d postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='socialreply'" | grep -qx 1; then
+          psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE ROLE socialreply LOGIN PASSWORD '$$DB_PASSWORD' NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT CONNECTION LIMIT 100"
+        else
+          psql -d postgres -v ON_ERROR_STOP=1 -c "ALTER ROLE socialreply PASSWORD '$$DB_PASSWORD'"
+        fi
+        if ! psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='socialreply'" | grep -qx 1; then
+          createdb -O socialreply socialreply
+        fi
+        psql -d socialreply -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS vector"
+
+  migrate:
+    <<: [*service-defaults, *api-image]
+    restart: "no"
+    command: ["php", "artisan", "migrate", "--force", "--no-interaction"]
+    environment: *api-environment
+    networks: [internal, shared]
+    depends_on:
+      database-bootstrap:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  app:
+    <<: [*service-defaults, *api-image]
+    command: ["php-fpm"]
+    environment: *api-environment
+    expose: ["9000"]
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          REQUEST_METHOD=GET SCRIPT_NAME=/index.php
+          SCRIPT_FILENAME=/var/www/html/public/index.php
+          DOCUMENT_ROOT=/var/www/html/public REQUEST_URI=/up
+          SERVER_PROTOCOL=HTTP/1.1 HTTP_ACCEPT=application/json
+          cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q '"status":"up"'
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  nginx:
+    <<: *service-defaults
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+    build:
+      context: https://github.com/ulpi-io/social-reply.git#${SOCIAL_REPLY_SOURCE_REF:?required}:api
+      dockerfile: Dockerfile
+      target: web-server
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    image: socialreply-nginx-${COOLIFY_RESOURCE_UUID:-local}:${SOCIAL_REPLY_SOURCE_REF:?required}
+    expose: ["8080"]
+    networks: [internal]
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --header='Accept: application/json' http://127.0.0.1:8080/up | grep -q '\"status\":\"up\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    stop_signal: SIGQUIT
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  horizon:
+    <<: [*service-defaults, *api-image]
+    command: ["php", "artisan", "horizon"]
+    environment: *api-environment
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "php", "artisan", "horizon:status"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
+    stop_signal: SIGTERM
+    stop_grace_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  scheduler:
+    <<: [*service-defaults, *api-image]
+    command: ["php", "artisan", "schedule:work"]
+    environment: *api-environment
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' >/dev/null && php artisan schedule:list --no-ansi >/dev/null"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    stop_signal: SIGTERM
+    stop_grace_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  reverb:
+    <<: [*service-defaults, *api-image]
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment: *api-environment
+    expose: ["8080"]
+    networks: [internal, shared]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/up | grep -q OK"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  web:
+    <<: *service-defaults
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+    build:
+      context: https://github.com/ulpi-io/social-reply.git#${SOCIAL_REPLY_SOURCE_REF:?required}:web
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?required}
+        NEXT_PUBLIC_REVERB_HOST: ${NEXT_PUBLIC_REVERB_HOST:?required}
+        NEXT_PUBLIC_REVERB_PORT: ${NEXT_PUBLIC_REVERB_PORT:?required}
+        NEXT_PUBLIC_REVERB_SCHEME: ${NEXT_PUBLIC_REVERB_SCHEME:?required}
+        NEXT_PUBLIC_REVERB_APP_KEY: ${REVERB_APP_KEY:?required}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:?required}
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    image: socialreply-web-${COOLIFY_RESOURCE_UUID:-local}:${SOCIAL_REPLY_SOURCE_REF:?required}
+    expose: ["3000"]
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      API_BASE_URL: http://nginx:8080
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:?required}
+    networks: [internal]
+    depends_on:
+      nginx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/en | grep -q '<html'"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    stop_signal: SIGTERM
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  social-reply-postgres-data:
+    labels:
+      com.socialreply.volume: postgres
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?required}
+    external: true
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

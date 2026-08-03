@@ -21,6 +21,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [n8n](https://workflow.con.fyi) ([recipe](platforms/n8n/))
 - [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
 - Buzz relay (planned at `wss://buzz.con.fyi`; [recipe](platforms/buzz/); packaged desktop client connects over WSS)
+- [SocialReply](https://app.socialreply.com) ([API](https://api.socialreply.com), [realtime](https://ws.socialreply.com), [recipe](platforms/social-reply/))
 
 ## Production DNS A records
 
@@ -59,17 +60,22 @@ The Buzz recipe configures `buzz.con.fyi`, but that DNS record is not present
 yet. Add `con.fyi` / `buzz` / `A` / `68.183.135.86` before deployment; this
 repository intentionally does not mutate DNS.
 
+The SocialReply recipe configures `app.socialreply.com`,
+`api.socialreply.com`, and `ws.socialreply.com`. Before deployment, verify or
+create an `A` record for each hostname pointing to `68.183.135.86`; this
+repository does not create those records.
+
 ## Layout
 
 - `infrastructure/compose.yaml` contains the reusable backing services.
-- `infrastructure/generate-env.sh` creates the infrastructure env plus 17 isolated platform fragments.
+- `infrastructure/generate-env.sh` creates the infrastructure env plus 18 isolated platform fragments.
 - `platforms/<slug>/compose.yaml` contains one logical application stack.
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
 - `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
 - `scripts/update-app-env.sh` safely adds or updates selected environment keys for one existing Coolify application.
 
-There are exactly 18 Compose files and 18 env generators: one pair for infrastructure and one pair for each of the 17 platforms in `REPOSITORIES.md`.
+There are exactly 19 Compose files and 19 env generators: one pair for infrastructure and one pair for each of the 18 platforms in `REPOSITORIES.md`.
 
 ## Shared infrastructure
 
@@ -106,7 +112,7 @@ Generators create mode-`0600` files, do not print secret values, and refuse over
 scripts/validate-all.sh
 ```
 
-The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 18 Compose models, and rejects duplicated shared-service containers inside platform stacks. It never runs `docker compose up`.
+The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 19 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces SocialReply's explicit PostgreSQL 17 plus pgvector exception. It never runs `docker compose up`.
 
 ## Create the Coolify resources
 
@@ -189,5 +195,13 @@ Buzz is pinned to the multi-architecture digest published for upstream commit
 The relay uses isolated shared PostgreSQL, durable Redis, and MinIO credentials,
 plus its own persistent git scratch volume. Install the packaged Buzz desktop
 client and connect it to `wss://buzz.con.fyi`.
+
+SocialReply builds its Laravel API, nginx sidecar, Horizon worker, scheduler,
+Reverb server, and Next.js web application from audited source commit
+`09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`. It keeps the upstream-required
+PostgreSQL 17 plus pgvector database inside the application stack, pinned to
+the verified multi-architecture image digest. Durable Redis, MinIO object
+storage, and Mailpit remain shared with application-specific credentials and
+namespaces.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.
