@@ -29,7 +29,7 @@ Environment scope for every deployment unit: **production only**.
 | n8n | Coolify recipe using `n8nio/n8n:2.10.4` | `https://workflow.con.fyi` | Coolify route |
 | Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Coolify route |
 | Buzz | `block/buzz` relay image and desktop clients | `wss://buzz.con.fyi` | Planned Coolify route; DNS pending |
-| SocialReply | `ulpi-io/social-reply` | `https://app.socialreply.com`, `https://api.socialreply.com`, `wss://ws.socialreply.com` | Planned Coolify routes; DNS must be verified before deployment |
+| SocialReply | `ulpi-io/social-reply` | `https://socialreply.ai`, `https://api.socialreply.ai`, `wss://ws.socialreply.ai` | Planned Coolify routes; DNS must be verified before deployment |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 
@@ -106,5 +106,5 @@ Domains not listed in this table are still to be collected or verified from the 
     - Ownership: personal / first-party
     - Deployment class: source-built Laravel API, nginx, Horizon, scheduler, Reverb, and Next.js web stack
     - Audited source ref: `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`
-    - Production routes: `https://app.socialreply.com`, `https://api.socialreply.com`, `wss://ws.socialreply.com`
+    - Production routes: `https://socialreply.ai`, `https://api.socialreply.ai`, `wss://ws.socialreply.ai`
     - Backing services: dedicated PostgreSQL 17 plus pgvector database; isolated shared Redis ACL user and MinIO bucket/service account; shared Mailpit SMTP

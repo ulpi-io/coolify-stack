@@ -21,7 +21,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [n8n](https://workflow.con.fyi) ([recipe](platforms/n8n/))
 - [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
 - Buzz relay (planned at `wss://buzz.con.fyi`; [recipe](platforms/buzz/); packaged desktop client connects over WSS)
-- [SocialReply](https://app.socialreply.com) ([API](https://api.socialreply.com), [realtime](https://ws.socialreply.com), [recipe](platforms/social-reply/))
+- [SocialReply](https://socialreply.ai) ([API](https://api.socialreply.ai), [realtime](https://ws.socialreply.ai), [recipe](platforms/social-reply/))
 
 ## Production DNS A records
 
@@ -60,8 +60,8 @@ The Buzz recipe configures `buzz.con.fyi`, but that DNS record is not present
 yet. Add `con.fyi` / `buzz` / `A` / `68.183.135.86` before deployment; this
 repository intentionally does not mutate DNS.
 
-The SocialReply recipe configures `app.socialreply.com`,
-`api.socialreply.com`, and `ws.socialreply.com`. Before deployment, verify or
+The SocialReply recipe configures `socialreply.ai`, `api.socialreply.ai`, and
+`ws.socialreply.ai`. Before deployment, verify or
 create an `A` record for each hostname pointing to `68.183.135.86`; this
 repository does not create those records.
 
@@ -132,6 +132,16 @@ scripts/create-resources.sh \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
+Create one missing resource without deleting or changing any other project:
+
+```bash
+scripts/create-resources.sh \
+  --apply \
+  --only social-reply \
+  --env-file /secure/path/social-reply.env \
+  --ssh-key /absolute/path/to/the/server/ssh/key
+```
+
 Buzz is a closed relay by default. The owner public key is bootstrapped into its
 membership table; keep the matching owner private key in the desktop client and
 in a secure backup, never in this repository. To create a fresh owner identity,
@@ -144,7 +154,7 @@ docker run --rm --entrypoint /usr/local/bin/buzz-admin \
   generate-key
 ```
 
-The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, ensures the external `ogg-shared` Docker network exists, deletes only this repository's exact project names, and recreates the stack sequentially. For each resource it waits for Coolify's Compose parser to finish, applies service domains, removes all parser-generated placeholder/default rows, and uploads exactly one generated row per key. It rejects any duplicate key, surviving `required` placeholder, or mismatch from the generated env file before moving to the next project; Coolify-managed `SERVICE_*` routing variables are permitted in addition to the generated keys. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction behavior.
+The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, and ensures the external `ogg-shared` Docker network exists. Full `--reset` mode deletes only this repository's exact project names and recreates the stack sequentially; `--only` requires its target project to be absent unless `--reset` is also supplied. For each selected resource it waits for Coolify's Compose parser to finish, applies service domains, removes all parser-generated placeholder/default rows, and uploads exactly one generated row per key. It rejects any duplicate key, surviving `required` placeholder, or mismatch from the generated env file before moving to the next project; Coolify-managed `SERVICE_*` routing variables are permitted in addition to the generated keys. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction behavior.
 
 ## Update one application's environment
 
