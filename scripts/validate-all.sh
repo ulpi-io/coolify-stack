@@ -150,8 +150,8 @@ grep -Fq 'pgvector/pgvector@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfa
   echo "Shared infrastructure must pin the verified PostgreSQL 17 plus pgvector image" >&2
   exit 1
 }
-grep -Fq 'POSTGRES_VOLUME_NAME=ogg-postgresql17-data' infrastructure/generate-env.sh || {
-  echo "PostgreSQL 17 must use its explicit migrated data volume" >&2
+grep -Fq 'postgresql17-data:/var/lib/postgresql/data' infrastructure/compose.yaml || {
+  echo "PostgreSQL 17 must use its distinct migrated data-volume key" >&2
   exit 1
 }
 # shellcheck disable=SC2016

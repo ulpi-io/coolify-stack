@@ -81,7 +81,7 @@ services:
       POSTGRES_DB: postgres
     command: ["postgres", "-c", "max_connections=500"]
     volumes:
-      - postgresql-data:/var/lib/postgresql/data
+      - postgresql17-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 10s
@@ -533,7 +533,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - mysql-data:/backup/mysql:ro
-      - postgresql-data:/backup/postgresql:ro
+      - postgresql17-data:/backup/postgresql:ro
       - redis-queue-data:/backup/redis-queue:ro
       - minio-data:/backup/minio:ro
       - qdrant-data:/backup/qdrant:ro
@@ -553,8 +553,7 @@ networks:
 
 volumes:
   mysql-data:
-  postgresql-data:
-    name: ${POSTGRES_VOLUME_NAME:?POSTGRES_VOLUME_NAME is required}
+  postgresql17-data:
   valkey-data:
   redis-cache-data:
   redis-queue-data:
