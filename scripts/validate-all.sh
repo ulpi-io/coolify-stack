@@ -145,12 +145,28 @@ grep -Fq 'provision buzz-media "$$BUZZ_S3_ACCESS_KEY" "$$BUZZ_S3_SECRET_KEY"' in
   echo "Shared MinIO must provision Buzz's isolated media bucket" >&2
   exit 1
 }
-# SocialReply requires its locked PostgreSQL 17 + pgvector contract rather than
-# silently targeting the shared PostgreSQL 16 service.
-grep -Fq 'pgvector/pgvector@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21' platforms/social-reply/generate-env.sh || {
-  echo "SocialReply must pin the verified PostgreSQL 17 plus pgvector image" >&2
+# Every PostgreSQL consumer shares the pinned PostgreSQL 17 + pgvector service.
+grep -Fq 'pgvector/pgvector@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21' infrastructure/compose.yaml || {
+  echo "Shared infrastructure must pin the verified PostgreSQL 17 plus pgvector image" >&2
   exit 1
 }
+grep -Fq 'POSTGRES_VOLUME_NAME=ogg-postgresql17-data' infrastructure/generate-env.sh || {
+  echo "PostgreSQL 17 must use its explicit migrated data volume" >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+grep -Fq 'create_tenant socialreply socialreply "$$SOCIAL_REPLY_DB_PASSWORD"' infrastructure/compose.yaml || {
+  echo "Shared PostgreSQL bootstrap must provision SocialReply's isolated database and role" >&2
+  exit 1
+}
+grep -Fq "psql -d socialreply -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION IF NOT EXISTS vector'" infrastructure/compose.yaml || {
+  echo "Shared PostgreSQL bootstrap must enable pgvector only in SocialReply's database" >&2
+  exit 1
+}
+if grep -Fq 'social-reply-postgres' platforms/social-reply/compose.yaml; then
+  echo "SocialReply must not duplicate the shared PostgreSQL service" >&2
+  exit 1
+fi
 grep -Fq 'SOCIAL_REPLY_SOURCE_REF=09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e' platforms/social-reply/generate-env.sh || {
   echo "SocialReply must pin the audited source commit" >&2
   exit 1

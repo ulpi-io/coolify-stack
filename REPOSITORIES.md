@@ -107,4 +107,4 @@ Domains not listed in this table are still to be collected or verified from the 
     - Deployment class: source-built Laravel API, nginx, Horizon, scheduler, Reverb, and Next.js web stack
     - Audited source ref: `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`
     - Production routes: `https://socialreply.ai`, `https://api.socialreply.ai`, `wss://ws.socialreply.ai`
-    - Backing services: dedicated PostgreSQL 17 plus pgvector database; isolated shared Redis ACL user and MinIO bucket/service account; shared Mailpit SMTP
+    - Backing services: isolated database/role on shared PostgreSQL 17 with pgvector; isolated shared Redis ACL user and MinIO bucket/service account; shared Mailpit SMTP
