@@ -39,7 +39,7 @@ x-api-dockerfile: &api-dockerfile |
           libzip-dev \
           linux-headers; \
       docker-php-ext-configure gd --with-freetype --with-jpeg; \
-      docker-php-ext-install -j"$$(nproc)" \
+      docker-php-ext-install -j2 \
           bcmath \
           gd \
           intl \
