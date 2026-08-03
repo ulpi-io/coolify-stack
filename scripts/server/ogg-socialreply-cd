@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+application_uuid=wa7sit5xx2wqtjh6yniv7fro
+application_name='SocialReply Stack'
+token_file=/tmp/ogg-coolify-social-reply-cd-token
+timeout_seconds=5400
+api_managed=0
+token_created=0
+active_deployment_uuid=""
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+parse_command() {
+  local original_command=$1
+  if [[ "$original_command" =~ ^deploy[[:space:]]social-reply[[:space:]]([0-9a-f]{40})$ ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+if [[ ${1:-} == --validate-command && $# -eq 2 ]]; then
+  parse_command "$2" >/dev/null || die "command is not an approved SocialReply deployment request"
+  echo "VALID: approved SocialReply deployment command"
+  exit 0
+fi
+
+[[ $# -eq 0 ]] || die "interactive arguments are not allowed"
+source_sha=$(parse_command "${SSH_ORIGINAL_COMMAND:-}") || die "only 'deploy social-reply <40-character-sha>' is allowed"
+
+command -v docker >/dev/null 2>&1 || die "docker is required"
+command -v jq >/dev/null 2>&1 || die "jq is required"
+command -v curl >/dev/null 2>&1 || die "curl is required"
+command -v flock >/dev/null 2>&1 || die "flock is required"
+
+exec 9>/var/lock/ogg-socialreply-cd.lock
+flock -n 9 || die "another SocialReply deployment is already running"
+
+api() {
+  local method=$1 endpoint=$2
+  [[ "$endpoint" =~ ^[A-Za-z0-9_./?=\&-]+$ ]] || die "unsafe Coolify API endpoint"
+  if [[ "$method" == GET ]]; then
+    docker exec coolify sh -lc \
+      "api_token=\$(cat '$token_file'); curl --fail-with-body -sS -X '$method' -H \"Authorization: Bearer \$api_token\" 'http://127.0.0.1:8080/api/v1/$endpoint'"
+  else
+    docker exec -i coolify sh -lc \
+      "api_token=\$(cat '$token_file'); curl --fail-with-body -sS -X '$method' -H \"Authorization: Bearer \$api_token\" -H 'Content-Type: application/json' --data-binary @- 'http://127.0.0.1:8080/api/v1/$endpoint'"
+  fi
+}
+
+cleanup() {
+  local exit_code=$?
+  trap - EXIT INT TERM
+  if [[ $api_managed -eq 1 ]]; then
+    if [[ $exit_code -ne 0 && "$active_deployment_uuid" =~ ^[A-Za-z0-9]+$ ]]; then
+      api POST "deployments/$active_deployment_uuid/cancel" </dev/null >/dev/null 2>&1 || true
+    fi
+    docker exec coolify sh -lc \
+      "api_token=\$(cat '$token_file' 2>/dev/null || true); if [ -n \"\$api_token\" ]; then curl -sS -o /dev/null -H \"Authorization: Bearer \$api_token\" http://127.0.0.1:8080/api/v1/disable || true; fi" >/dev/null 2>&1 || true
+    if [[ $token_created -eq 0 ]]; then
+      docker exec coolify php artisan tinker --execute='$settings=App\Models\InstanceSettings::get(); $settings->is_api_enabled=false; $settings->save();' >/dev/null 2>&1 || true
+    fi
+    docker exec coolify php artisan tinker --execute='$user=App\Models\User::findOrFail(0); $user->tokens()->where("name","ogg-coolify-social-reply-cd")->delete();' >/dev/null 2>&1 || true
+    docker exec coolify rm -f "$token_file" >/dev/null 2>&1 || true
+  fi
+  exit "$exit_code"
+}
+trap cleanup EXIT INT TERM
+
+api_state=$(docker exec coolify php artisan tinker --execute='print(json_encode(["enabled"=>App\Models\InstanceSettings::get()->is_api_enabled,"allowed"=>App\Models\InstanceSettings::get()->allowed_ips]));')
+[[ $(jq -r '.allowed' <<<"$api_state") == '127.0.0.1,::1' ]] || die "Coolify API allowlist must remain localhost-only"
+
+if [[ $(jq -r '.enabled' <<<"$api_state") != true ]]; then
+  docker exec coolify php artisan tinker --execute='$settings=App\Models\InstanceSettings::get(); $settings->is_api_enabled=true; $settings->save();' >/dev/null
+fi
+api_managed=1
+
+docker exec coolify php artisan tinker --execute='session(["currentTeam"=>App\Models\Team::findOrFail(0)]); $user=App\Models\User::findOrFail(0); $user->tokens()->where("name","ogg-coolify-social-reply-cd")->delete(); $token=$user->createToken("ogg-coolify-social-reply-cd",["root"],now()->addHours(2)); file_put_contents("/tmp/ogg-coolify-social-reply-cd-token",$token->plainTextToken);' >/dev/null
+token_created=1
+
+application_json=$(api GET "applications/$application_uuid" </dev/null) || die "could not inspect the SocialReply application"
+[[ $(jq -r '.name' <<<"$application_json") == "$application_name" ]] || die "the pinned Coolify UUID is not SocialReply Stack"
+
+existing_envs=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not inspect the SocialReply environment"
+source_rows=$(jq '[.[] | select(.is_preview == false and .key == "SOCIAL_REPLY_SOURCE_REF")] | length' <<<"$existing_envs")
+[[ "$source_rows" == 1 ]] || die "expected exactly one production SOCIAL_REPLY_SOURCE_REF row"
+
+env_payload=$(jq -cn --arg source_sha "$source_sha" '{
+  data: [{
+    key: "SOCIAL_REPLY_SOURCE_REF",
+    value: $source_sha,
+    is_preview: false,
+    is_literal: false,
+    is_multiline: false,
+    is_shown_once: false,
+    is_runtime: true,
+    is_buildtime: true,
+    comment: "Promoted by SocialReply production CD"
+  }]
+}')
+printf '%s' "$env_payload" | api PATCH "applications/$application_uuid/envs/bulk" >/dev/null || die "could not promote the SocialReply source SHA"
+unset env_payload
+
+updated_envs=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not verify the promoted SocialReply environment"
+updated_source=$(jq -r '[.[] | select(.is_preview == false and .key == "SOCIAL_REPLY_SOURCE_REF")] | if length == 1 then .[0].value else "" end' <<<"$updated_envs")
+[[ "$updated_source" == "$source_sha" ]] || die "Coolify did not persist the promoted SocialReply source SHA"
+
+non_target_before=$(docker ps --format '{{.ID}}|{{.Names}}' | awk -F'|' -v marker="$application_uuid" 'index($2, marker) == 0 { print }' | sort)
+
+deployment_json=$(api POST "applications/$application_uuid/start?instant_deploy=true" </dev/null) || die "could not queue the SocialReply deployment"
+active_deployment_uuid=$(jq -er '.deployment_uuid' <<<"$deployment_json") || die "Coolify returned no deployment UUID"
+started_at=$SECONDS
+
+while true; do
+  deployment_json=$(api GET "deployments/$active_deployment_uuid" </dev/null) || die "could not inspect the SocialReply deployment"
+  status=$(jq -r '.status // "unknown"' <<<"$deployment_json")
+  case "$status" in
+    finished) break ;;
+    failed|cancelled-by-user) die "SocialReply deployment ended with status $status" ;;
+    queued|in_progress) ;;
+    *) die "SocialReply deployment returned unexpected status $status" ;;
+  esac
+  (( SECONDS - started_at < timeout_seconds )) || die "SocialReply deployment timed out"
+  sleep 10
+done
+active_deployment_uuid=""
+
+health_started_at=$SECONDS
+while true; do
+  application_json=$(api GET "applications/$application_uuid" </dev/null) || die "could not inspect SocialReply after deployment"
+  application_status=$(jq -r '.status // "unknown"' <<<"$application_json")
+  [[ "$application_status" == 'running:healthy' ]] && break
+  [[ "$application_status" == running:* ]] || die "SocialReply returned unexpected application status $application_status"
+  (( SECONDS - health_started_at < 300 )) || die "SocialReply did not become healthy after deployment"
+  sleep 5
+done
+
+container_state=$(docker ps -a --format '{{.Names}}|{{.Status}}' | awk -F'|' -v marker="$application_uuid" 'index($1, marker) > 0 { print }')
+for service in app nginx horizon scheduler reverb web; do
+  count=$(grep -Ec "^${service}-${application_uuid}-.*\|Up .+ \(healthy\)$" <<<"$container_state" || true)
+  [[ "$count" == 1 ]] || die "expected one healthy $service container, found $count"
+done
+migrate_count=$(grep -Ec "^migrate-${application_uuid}-.*\|Exited \(0\)" <<<"$container_state" || true)
+[[ "$migrate_count" == 1 ]] || die "SocialReply migration container did not exit successfully"
+
+app_container=$(docker ps --format '{{.Names}}' | grep -E "^app-${application_uuid}-" | head -1)
+[[ -n "$app_container" ]] || die "could not resolve the SocialReply app container"
+if docker exec "$app_container" php artisan migrate:status --no-ansi | grep -q 'Pending'; then
+  die "SocialReply has pending migrations after deployment"
+fi
+
+curl -ksS --fail --resolve socialreply.ai:443:127.0.0.1 https://socialreply.ai/en >/dev/null
+curl -ksS --fail --resolve api.socialreply.ai:443:127.0.0.1 https://api.socialreply.ai/up >/dev/null
+curl -ksS --fail --resolve ws.socialreply.ai:443:127.0.0.1 https://ws.socialreply.ai/up >/dev/null
+
+non_target_after=$(docker ps --format '{{.ID}}|{{.Names}}' | awk -F'|' -v marker="$application_uuid" 'index($2, marker) == 0 { print }' | sort)
+[[ "$non_target_after" == "$non_target_before" ]] || die "a non-SocialReply running container changed during the deployment"
+
+echo "DEPLOYED: SocialReply $source_sha is running healthy; non-target containers were unchanged."
