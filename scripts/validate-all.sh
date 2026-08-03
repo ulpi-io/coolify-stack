@@ -167,8 +167,8 @@ if grep -Fq 'social-reply-postgres' platforms/social-reply/compose.yaml; then
   echo "SocialReply must not duplicate the shared PostgreSQL service" >&2
   exit 1
 fi
-grep -Fq 'SOCIAL_REPLY_SOURCE_REF=09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e' platforms/social-reply/generate-env.sh || {
-  echo "SocialReply must pin the audited source commit" >&2
+grep -Eq '^SOCIAL_REPLY_SOURCE_REF=[0-9a-f]{40}$' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply must pin one immutable source commit SHA" >&2
   exit 1
 }
 grep -Fq 'docker-php-ext-install -j2' platforms/social-reply/compose.yaml || {

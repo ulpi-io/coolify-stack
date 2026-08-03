@@ -207,10 +207,22 @@ plus its own persistent git scratch volume. Install the packaged Buzz desktop
 client and connect it to `wss://buzz.con.fyi`.
 
 SocialReply builds its Laravel API, nginx sidecar, Horizon worker, scheduler,
-Reverb server, and Next.js web application from audited source commit
-`09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`. Its isolated database and role use
-the shared PostgreSQL 17 service; pgvector is enabled only in that database.
-Durable Redis, MinIO object storage, and Mailpit are also shared with
-application-specific credentials and namespaces.
+Reverb server, and Next.js web application from the immutable audited source
+commit recorded in `platforms/social-reply/generate-env.sh`. Its isolated
+database and role use the shared PostgreSQL 17 service; pgvector is enabled only
+in that database. Durable Redis, MinIO object storage, and Mailpit are also
+shared with application-specific credentials and namespaces.
+
+SocialReply production delivery is exact-SHA and single-resource scoped. After
+SocialReply's backend and frontend CI jobs pass on `main`, its workflow sends a
+signed repository dispatch to this repository. The receiver verifies that the
+requested SHA is still SocialReply's current `main`, promotes only
+`SOCIAL_REPLY_SOURCE_REF`, validates every Compose model, and asks the server's
+forced-command deployment gate to replace only the existing SocialReply
+resource. The gate rejects every other slug and command, keeps Coolify's API
+localhost-only, waits for all SocialReply services and migrations, exercises
+the three internal HTTPS routes, and fails if any non-SocialReply running
+container changes during the deployment. Shared infrastructure is never part
+of this workflow.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.
