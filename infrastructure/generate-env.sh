@@ -37,7 +37,7 @@ command -v openssl >/dev/null 2>&1 || { echo "openssl is required" >&2; exit 1; 
 
 infra_env="$output_dir/infrastructure.env"
 fragments_dir="$output_dir/platforms"
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply)
 
 if [[ $force -ne 1 ]]; then
   [[ ! -e "$infra_env" ]] || { echo "Refusing to overwrite $infra_env; pass --force" >&2; exit 1; }
@@ -61,8 +61,8 @@ secret_vars=(
   LOKEI_CACHE_PASSWORD ALBERT_CACHE_PASSWORD KENSI_AI_CACHE_PASSWORD OPEN_KUDOS_CACHE_PASSWORD
   POSTIZ_CACHE_PASSWORD TWENTY_CACHE_PASSWORD OPENPAY_CACHE_PASSWORD
   LOKEI_QUEUE_PASSWORD ALBERT_QUEUE_PASSWORD KENSI_AI_QUEUE_PASSWORD OPEN_KUDOS_QUEUE_PASSWORD
-  N8N_QUEUE_PASSWORD POSTIZ_QUEUE_PASSWORD OPENPAY_QUEUE_PASSWORD BUZZ_QUEUE_PASSWORD
-  MINIO_ROOT_PASSWORD RECORD_CLOUD_S3_SECRET_KEY PLANE_S3_SECRET_KEY KENSI_AI_S3_SECRET_KEY OPENPAY_S3_SECRET_KEY TWENTY_S3_SECRET_KEY BUZZ_S3_SECRET_KEY
+  N8N_QUEUE_PASSWORD POSTIZ_QUEUE_PASSWORD OPENPAY_QUEUE_PASSWORD BUZZ_QUEUE_PASSWORD SOCIAL_REPLY_QUEUE_PASSWORD
+  MINIO_ROOT_PASSWORD RECORD_CLOUD_S3_SECRET_KEY PLANE_S3_SECRET_KEY KENSI_AI_S3_SECRET_KEY OPENPAY_S3_SECRET_KEY TWENTY_S3_SECRET_KEY BUZZ_S3_SECRET_KEY SOCIAL_REPLY_S3_SECRET_KEY
   QDRANT_API_KEY PLANE_RABBITMQ_PASSWORD
 )
 for var_name in "${secret_vars[@]}"; do
@@ -76,6 +76,7 @@ KENSI_AI_S3_ACCESS_KEY=kensiai
 OPENPAY_S3_ACCESS_KEY=openpay
 TWENTY_S3_ACCESS_KEY=twenty
 BUZZ_S3_ACCESS_KEY=buzz
+SOCIAL_REPLY_S3_ACCESS_KEY=socialreply
 
 infra_tmp=$(mktemp "$output_dir/.infrastructure.env.XXXXXX")
 cat > "$infra_tmp" <<EOF
@@ -117,6 +118,7 @@ N8N_QUEUE_PASSWORD=$N8N_QUEUE_PASSWORD
 POSTIZ_QUEUE_PASSWORD=$POSTIZ_QUEUE_PASSWORD
 OPENPAY_QUEUE_PASSWORD=$OPENPAY_QUEUE_PASSWORD
 BUZZ_QUEUE_PASSWORD=$BUZZ_QUEUE_PASSWORD
+SOCIAL_REPLY_QUEUE_PASSWORD=$SOCIAL_REPLY_QUEUE_PASSWORD
 MINIO_ROOT_USER=$MINIO_ROOT_USER
 MINIO_ROOT_PASSWORD=$MINIO_ROOT_PASSWORD
 RECORD_CLOUD_S3_ACCESS_KEY=$RECORD_CLOUD_S3_ACCESS_KEY
@@ -131,6 +133,8 @@ TWENTY_S3_ACCESS_KEY=$TWENTY_S3_ACCESS_KEY
 TWENTY_S3_SECRET_KEY=$TWENTY_S3_SECRET_KEY
 BUZZ_S3_ACCESS_KEY=$BUZZ_S3_ACCESS_KEY
 BUZZ_S3_SECRET_KEY=$BUZZ_S3_SECRET_KEY
+SOCIAL_REPLY_S3_ACCESS_KEY=$SOCIAL_REPLY_S3_ACCESS_KEY
+SOCIAL_REPLY_S3_SECRET_KEY=$SOCIAL_REPLY_S3_SECRET_KEY
 QDRANT_API_KEY=$QDRANT_API_KEY
 PLANE_RABBITMQ_PASSWORD=$PLANE_RABBITMQ_PASSWORD
 TEMPORAL_CORS_ORIGINS=https://post.con.fyi
@@ -233,7 +237,13 @@ postgres_fragment twenty twenty twenty "$TWENTY_DB_PASSWORD" \
 postgres_fragment buzz buzz buzz "$BUZZ_DB_PASSWORD" \
   $(queue_lines buzz "$BUZZ_QUEUE_PASSWORD") \
   "S3_ENDPOINT=http://minio:9000" "S3_REGION=us-east-1" "S3_BUCKET=buzz-media" "S3_ACCESS_KEY=$BUZZ_S3_ACCESS_KEY" "S3_SECRET_KEY=$BUZZ_S3_SECRET_KEY" "S3_PATH_STYLE=true"
+# SocialReply keeps PostgreSQL 17 + pgvector inside its application stack. Its
+# Redis, object storage, and mail transport remain shared and isolated here.
+# shellcheck disable=SC2046
+write_fragment social-reply \
+  $(queue_lines social-reply "$SOCIAL_REPLY_QUEUE_PASSWORD") \
+  "S3_ENDPOINT=http://minio:9000" "S3_REGION=us-east-1" "S3_BUCKET=social-reply" "S3_ACCESS_KEY=$SOCIAL_REPLY_S3_ACCESS_KEY" "S3_SECRET_KEY=$SOCIAL_REPLY_S3_SECRET_KEY" "S3_PATH_STYLE=true" "${mail_lines[@]}"
 
 count=$(find "$fragments_dir" -maxdepth 1 -type f -name '*.shared.env' | wc -l | tr -d ' ')
-[[ "$count" = "17" ]] || { echo "Internal error: expected 17 shared fragments, found $count" >&2; exit 1; }
-echo "Generated infrastructure.env and 17 platform fragments in $output_dir (secrets not displayed)."
+[[ "$count" = "18" ]] || { echo "Internal error: expected 18 shared fragments, found $count" >&2; exit 1; }
+echo "Generated infrastructure.env and 18 platform fragments in $output_dir (secrets not displayed)."

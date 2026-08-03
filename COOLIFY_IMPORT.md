@@ -19,7 +19,7 @@ Run locally on a trusted machine:
 mkdir -p generated
 infrastructure/generate-env.sh --output-dir generated
 
-for slug in kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty; do
+for slug in kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty social-reply; do
   platforms/$slug/generate-env.sh \
     --shared-env "generated/platforms/$slug.shared.env" \
     --output "generated/$slug.env"
@@ -40,8 +40,9 @@ Before importing anything:
 1. Add a read-only GitHub source token as the secret environment variable `GIT_AUTH_TOKEN` for repository-built platform stacks. It must be able to read the private repositories referenced by that stack.
 2. Replace Nudgra's `OPERATOR_EMAIL_ALLOWLIST` placeholder.
 3. Supply Buzz's 64-character hex Nostr owner public key and securely retain the matching private key outside the server recipe.
-4. Add optional OAuth, payment, social-provider, and API credentials only to the platform that owns them.
-5. The backup destination values are intentionally blank. Configure `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
+4. SocialReply's operator allowlist defaults to the `--operator-email` value (`cip@opengrowthgroup.co` by default). Confirm it before import.
+5. Add optional OAuth, payment, social-provider, and API credentials only to the platform that owns them. SocialReply declares optional provider secrets as pass-through variables so an unset secret remains absent rather than becoming a misleading blank credential.
+6. The backup destination values are intentionally blank. Configure `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
 
 ## 3. Create the shared external network
 
@@ -88,12 +89,15 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/n8n` | `n8n` | `https://workflow.con.fyi` |
 | `platforms/twenty` | `twenty` | `https://crm.con.fyi` |
 | `platforms/buzz` | `relay` | `https://buzz.con.fyi` |
+| `platforms/social-reply` | `web` | `https://app.socialreply.com` |
+| `platforms/social-reply` | `nginx` | `https://api.socialreply.com` |
+| `platforms/social-reply` | `reverb` | `https://ws.socialreply.com` |
 
 Coolify/Traefik owns public routing and TLS. Do not add host-published database or backing-service ports to these recipes.
 
 ## Laravel cache/queue compatibility note
 
-Plane uses the shared Valkey service. Applications whose existing recipes use Redis receive the shared Redis endpoints. Laravel applications currently expose one Redis credential set for both cache and queue, so they use durable `redis-queue`; n8n, Postiz, and Buzz also use `redis-queue`, while Twenty uses `redis-cache`.
+Plane uses the shared Valkey service. Applications whose existing recipes use Redis receive the shared Redis endpoints. Laravel applications currently expose one Redis credential set for both cache and queue, so they use durable `redis-queue`; n8n, Postiz, Buzz, and SocialReply also use `redis-queue`, while Twenty uses `redis-cache`. SocialReply is the intentional database exception: its source contract requires PostgreSQL 17 plus pgvector, so `platforms/social-reply` owns a dedicated, persistent database container instead of targeting shared PostgreSQL 16.
 
 ## 6. Acceptance checks after a later deployment
 
@@ -103,3 +107,9 @@ For Buzz specifically, also connect the packaged desktop client to
 `wss://buzz.con.fyi`, confirm the configured owner is bootstrapped, prove an
 unlisted identity is rejected, upload/download media, and exercise a git repo
 round trip before closing its production gate.
+
+For SocialReply specifically, run migrations twice against the fresh pgvector
+database, verify the Laravel `/up` route, Next.js `/en` render, Horizon status,
+scheduler enumeration, and the Reverb `/up` route, then exercise one queue job,
+one S3 object round trip, one captured email, and one authenticated Sanctum
+session across `app.socialreply.com` and `api.socialreply.com`.

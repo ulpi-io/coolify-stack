@@ -245,6 +245,7 @@ services:
       POSTIZ_QUEUE_PASSWORD: ${POSTIZ_QUEUE_PASSWORD:?required}
       OPENPAY_QUEUE_PASSWORD: ${OPENPAY_QUEUE_PASSWORD:?required}
       BUZZ_QUEUE_PASSWORD: ${BUZZ_QUEUE_PASSWORD:?required}
+      SOCIAL_REPLY_QUEUE_PASSWORD: ${SOCIAL_REPLY_QUEUE_PASSWORD:?required}
     volumes:
       - redis-queue-data:/data
     entrypoint: ["/bin/sh", "-ec"]
@@ -262,6 +263,7 @@ services:
           echo "user postiz on >$$POSTIZ_QUEUE_PASSWORD ~* &* +@all"
           echo "user openpay on >$$OPENPAY_QUEUE_PASSWORD ~openpay:* &openpay:* +@all"
           echo "user buzz on >$$BUZZ_QUEUE_PASSWORD ~buzz:* &buzz:* +@all"
+          echo "user social-reply on >$$SOCIAL_REPLY_QUEUE_PASSWORD ~social-reply:* &social-reply:* +@all"
         } > /data/users.acl
         chown 999:999 /data/users.acl
         chmod 600 /data/users.acl
@@ -282,9 +284,10 @@ services:
       retries: 10
     environment:
       REDIS_QUEUE_ADMIN_PASSWORD: ${REDIS_QUEUE_ADMIN_PASSWORD:?required}
-      # Keep this consumer credential in the service config so adding Buzz
-      # recreates Redis after redis-queue-init rewrites the shared ACL file.
+      # Keep newly added consumer credentials in the service config so a later
+      # infrastructure deployment recreates Redis after init rewrites the ACL.
       BUZZ_QUEUE_PASSWORD: ${BUZZ_QUEUE_PASSWORD:?required}
+      SOCIAL_REPLY_QUEUE_PASSWORD: ${SOCIAL_REPLY_QUEUE_PASSWORD:?required}
     deploy:
       resources:
         limits:
@@ -333,6 +336,8 @@ services:
       TWENTY_S3_SECRET_KEY: ${TWENTY_S3_SECRET_KEY:?required}
       BUZZ_S3_ACCESS_KEY: ${BUZZ_S3_ACCESS_KEY:?required}
       BUZZ_S3_SECRET_KEY: ${BUZZ_S3_SECRET_KEY:?required}
+      SOCIAL_REPLY_S3_ACCESS_KEY: ${SOCIAL_REPLY_S3_ACCESS_KEY:?required}
+      SOCIAL_REPLY_S3_SECRET_KEY: ${SOCIAL_REPLY_S3_SECRET_KEY:?required}
     entrypoint: ["/bin/sh", "-ec"]
     command:
       - |
@@ -351,6 +356,7 @@ services:
         provision openpay "$$OPENPAY_S3_ACCESS_KEY" "$$OPENPAY_S3_SECRET_KEY"
         provision twenty "$$TWENTY_S3_ACCESS_KEY" "$$TWENTY_S3_SECRET_KEY"
         provision buzz-media "$$BUZZ_S3_ACCESS_KEY" "$$BUZZ_S3_SECRET_KEY"
+        provision social-reply "$$SOCIAL_REPLY_S3_ACCESS_KEY" "$$SOCIAL_REPLY_S3_SECRET_KEY"
 
   qdrant:
     <<: *service-defaults

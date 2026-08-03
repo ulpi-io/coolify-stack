@@ -79,7 +79,7 @@ else
   [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--buzz-owner-pubkey must be a 64-character hex Nostr public key"
 fi
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply)
 
 # slug|project|compose path|resource|domains JSON|description
 stacks=(
@@ -101,6 +101,7 @@ stacks=(
   'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://workflow.con.fyi"}]|Production n8n workflow automation stack.'
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
   'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
+  'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://app.socialreply.com"},{"name":"nginx","domain":"https://api.socialreply.com"},{"name":"reverb","domain":"https://ws.socialreply.com"}]|Production SocialReply conversational-marketing platform.'
 )
 
 cleanup() {
@@ -148,19 +149,22 @@ for slug in "${platforms[@]}"; do
   if [[ "$slug" == buzz ]]; then
     generator_args+=(--owner-pubkey "$buzz_owner_pubkey")
   fi
+  if [[ "$slug" == social-reply ]]; then
+    generator_args+=(--operator-email "$operator_email")
+  fi
   "platforms/$slug/generate-env.sh" "${generator_args[@]}"
 done
 sed -i.bak "s/^OPERATOR_EMAIL_ALLOWLIST=.*/OPERATOR_EMAIL_ALLOWLIST=$operator_email/" "$work_dir/nudgra-oss.env"
 rm -f -- "$work_dir/nudgra-oss.env.bak"
 
-[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 18 ]] || die "expected 18 generated env files"
+[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 19 ]] || die "expected 19 generated env files"
 for env_file in "$work_dir"/*.env; do
   [[ $(stat -f '%Lp' "$env_file") == 600 ]] || die "$env_file is not mode 0600"
   ! grep -Eq '=required$|=.+ is required$|=replace-with-|example\.invalid' "$env_file" || die "$env_file still contains a placeholder"
 done
 
 if [[ "$mode" == check ]]; then
-  echo "CHECK PASSED: 18 environment files generated with no required placeholders; no remote changes made."
+  echo "CHECK PASSED: 19 environment files generated with no required placeholders; no remote changes made."
   exit 0
 fi
 
@@ -350,4 +354,4 @@ while IFS=$'\t' read -r slug _ application_uuid _; do
 done < "$manifest"
 [[ $bad_status -eq 0 ]] || die "one or more resources were deployed unexpectedly"
 
-echo "DONE: 18 projects and 18 configured Git Compose resources created; nothing was deployed."
+echo "DONE: 19 projects and 19 configured Git Compose resources created; nothing was deployed."
