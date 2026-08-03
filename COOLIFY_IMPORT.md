@@ -7,6 +7,9 @@ scripts/create-resources.sh --check
 scripts/create-resources.sh --apply --reset \
   --buzz-owner-pubkey "$BUZZ_OWNER_PUBKEY" \
   --ssh-key /absolute/path/to/the/server/ssh/key
+scripts/create-resources.sh --apply --only social-reply \
+  --env-file /secure/path/social-reply.env \
+  --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
 The remaining sections explain what the automation configures and are useful for manual verification.
@@ -89,9 +92,9 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/n8n` | `n8n` | `https://workflow.con.fyi` |
 | `platforms/twenty` | `twenty` | `https://crm.con.fyi` |
 | `platforms/buzz` | `relay` | `https://buzz.con.fyi` |
-| `platforms/social-reply` | `web` | `https://app.socialreply.com` |
-| `platforms/social-reply` | `nginx` | `https://api.socialreply.com` |
-| `platforms/social-reply` | `reverb` | `https://ws.socialreply.com` |
+| `platforms/social-reply` | `web` | `https://socialreply.ai` |
+| `platforms/social-reply` | `nginx` | `https://api.socialreply.ai` |
+| `platforms/social-reply` | `reverb` | `https://ws.socialreply.ai` |
 
 Coolify/Traefik owns public routing and TLS. Do not add host-published database or backing-service ports to these recipes.
 
@@ -112,4 +115,4 @@ For SocialReply specifically, run migrations twice against the fresh pgvector
 database, verify the Laravel `/up` route, Next.js `/en` render, Horizon status,
 scheduler enumeration, and the Reverb `/up` route, then exercise one queue job,
 one S3 object round trip, one captured email, and one authenticated Sanctum
-session across `app.socialreply.com` and `api.socialreply.com`.
+session across `socialreply.ai` and `api.socialreply.ai`.

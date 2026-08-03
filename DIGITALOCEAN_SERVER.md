@@ -50,8 +50,8 @@ Known application domains include:
 The stack recipe reserves `https://buzz.con.fyi` for Buzz (desktop/CLI clients
 use `wss://buzz.con.fyi`), but its DNS record must be created before deployment.
 
-The SocialReply recipe reserves `https://app.socialreply.com`,
-`https://api.socialreply.com`, and `wss://ws.socialreply.com`. Resolve current
+The SocialReply recipe reserves `https://socialreply.ai`,
+`https://api.socialreply.ai`, and `wss://ws.socialreply.ai`. Resolve current
 DNS and live Coolify state before deployment; the recipe itself does not create
 or change those records.
 

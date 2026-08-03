@@ -15,6 +15,8 @@ buzz_owner_pubkey=""
 ssh_key=${COOLIFY_SSH_KEY:-}
 mode=""
 reset=0
+only_slug=""
+provided_env_file=""
 token_name=ogg-coolify-stack-bootstrap
 token_file=/tmp/ogg-coolify-stack-token
 legacy_token_name=codex-coolify-stack-bootstrap
@@ -28,11 +30,14 @@ usage() {
 Usage:
   scripts/create-resources.sh --check
   scripts/create-resources.sh --apply --reset --ssh-key PATH
+  scripts/create-resources.sh --apply --only SLUG --env-file FILE --ssh-key PATH
 
 Options:
   --check             Generate and validate all environment artifacts locally only.
   --apply             Configure Coolify. This never deploys an application.
-  --reset             Delete and recreate the exact stack projects before applying.
+  --reset             Delete and recreate the selected exact stack project(s).
+  --only SLUG         Create one missing resource without touching other projects.
+  --env-file FILE     Use a pre-generated mode-0600 env file with --only.
   --ssh-key PATH      SSH private key used for the Coolify host.
   --host HOST         Coolify server SSH host (default: 68.183.135.86).
   --server-uuid UUID  Coolify destination server UUID.
@@ -57,6 +62,8 @@ while (($#)); do
     --check) mode=check; shift ;;
     --apply) mode=apply; shift ;;
     --reset) reset=1; shift ;;
+    --only) [[ $# -ge 2 ]] || die "--only needs a slug"; only_slug=$2; shift 2 ;;
+    --env-file) [[ $# -ge 2 ]] || die "--env-file needs a path"; provided_env_file=$2; shift 2 ;;
     --ssh-key) [[ $# -ge 2 ]] || die "--ssh-key needs a path"; ssh_key=$2; shift 2 ;;
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --server-uuid) [[ $# -ge 2 ]] || die "--server-uuid needs a value"; server_uuid=$2; shift 2 ;;
@@ -70,7 +77,7 @@ done
 
 [[ -n "$mode" ]] || { usage; exit 2; }
 [[ "$operator_email" == *@* ]] || die "--operator-email must be an email address"
-if [[ "$mode" == apply ]]; then
+if [[ "$mode" == apply && ( -z "$only_slug" || "$only_slug" == buzz ) ]]; then
   [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--apply requires --buzz-owner-pubkey with a 64-character hex Nostr public key"
 elif [[ -z "$buzz_owner_pubkey" ]]; then
   # Public key for secret scalar 1. It is used only in throwaway --check output.
@@ -101,8 +108,24 @@ stacks=(
   'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://workflow.con.fyi"}]|Production n8n workflow automation stack.'
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
   'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
-  'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://app.socialreply.com"},{"name":"nginx","domain":"https://api.socialreply.com"},{"name":"reverb","domain":"https://ws.socialreply.com"}]|Production SocialReply conversational-marketing platform.'
+  'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}]|Production SocialReply conversational-marketing platform.'
 )
+
+if [[ -n "$only_slug" ]]; then
+  known_slug=0
+  for stack in "${stacks[@]}"; do
+    IFS='|' read -r slug _ <<<"$stack"
+    [[ "$slug" == "$only_slug" ]] && known_slug=1
+  done
+  [[ $known_slug -eq 1 ]] || die "unknown resource slug for --only: $only_slug"
+fi
+if [[ -n "$provided_env_file" ]]; then
+  [[ -n "$only_slug" ]] || die "--env-file requires --only"
+  [[ -f "$provided_env_file" && ! -L "$provided_env_file" ]] || die "--env-file must be a regular, non-symlink file"
+  provided_env_mode=$(stat -f '%Lp' "$provided_env_file" 2>/dev/null || stat -c '%a' "$provided_env_file")
+  [[ "$provided_env_mode" == 600 ]] || die "--env-file must have mode 0600"
+  grep -qx "PLATFORM_SLUG=$only_slug" "$provided_env_file" || die "--env-file does not belong to $only_slug"
+fi
 
 cleanup() {
   local exit_code=$?
@@ -168,7 +191,7 @@ if [[ "$mode" == check ]]; then
   exit 0
 fi
 
-[[ $reset -eq 1 ]] || die "--apply currently requires --reset so the result is deterministic"
+[[ $reset -eq 1 || -n "$only_slug" ]] || die "--apply requires --reset unless --only selects one resource"
 [[ -n "$ssh_key" && -f "$ssh_key" ]] || die "--ssh-key must name an existing private key"
 command -v gh >/dev/null 2>&1 || die "gh is required to load the private-repository build token"
 git_auth_token=$(gh auth token 2>/dev/null) || die "gh auth token failed"
@@ -229,9 +252,11 @@ delete_application_envs() {
 
 projects_json=$(api GET projects </dev/null) || die "could not list Coolify projects"
 for stack in "${stacks[@]}"; do
-  IFS='|' read -r _ project_name _ _ _ _ <<<"$stack"
+  IFS='|' read -r slug project_name _ _ _ _ <<<"$stack"
+  [[ -z "$only_slug" || "$slug" == "$only_slug" ]] || continue
   while IFS= read -r project_uuid; do
     [[ -n "$project_uuid" ]] || continue
+    [[ $reset -eq 1 ]] || die "$project_name already exists; pass --reset to replace that exact target"
     project_json=$(api GET "projects/$project_uuid" </dev/null) || die "could not inspect $project_name"
     while IFS= read -r environment_uuid; do
       [[ -n "$environment_uuid" ]] || continue
@@ -263,6 +288,7 @@ manifest=$work_dir/resources.tsv
 : > "$manifest"
 for stack in "${stacks[@]}"; do
   IFS='|' read -r slug project_name compose_location resource_name domains_json description <<<"$stack"
+  [[ -z "$only_slug" || "$slug" == "$only_slug" ]] || continue
   project_payload=$(jq -n --arg name "$project_name" --arg description "$description" '{name:$name,description:$description}')
   project_response=$(printf '%s' "$project_payload" | api POST projects) || die "could not create project $project_name"
   project_uuid=$(jq -er .uuid <<<"$project_response") || die "Coolify returned no project UUID for $project_name"
@@ -322,6 +348,7 @@ for stack in "${stacks[@]}"; do
 
   env_file=$work_dir/infrastructure.env
   [[ "$slug" == infrastructure ]] || env_file=$work_dir/$slug.env
+  [[ -z "$provided_env_file" ]] || env_file=$provided_env_file
   env_payload=$(jq -Rn \
     --rawfile git_auth_token <(printf '%s' "$git_auth_token") \
     '{data:[inputs | select(length > 0 and (startswith("#") | not)) | capture("^(?<key>[^=]+)=(?<value>.*)$") | if .key == "GIT_AUTH_TOKEN" and .value == "" then .value = $git_auth_token else . end | {key:.key,value:.value,is_preview:false,is_literal:false,is_multiline:false,is_shown_once:(.key | test("PASSWORD|SECRET|ACCESS_KEY|API_KEY|AUTH_TOKEN|APP_KEY|SIGNING_KEY")),is_runtime:true,is_buildtime:true,comment:"Generated by coolify-stack"}]}' "$env_file")
@@ -354,4 +381,8 @@ while IFS=$'\t' read -r slug _ application_uuid _; do
 done < "$manifest"
 [[ $bad_status -eq 0 ]] || die "one or more resources were deployed unexpectedly"
 
-echo "DONE: 19 projects and 19 configured Git Compose resources created; nothing was deployed."
+if [[ -n "$only_slug" ]]; then
+  echo "DONE: $only_slug project and configured Git Compose resource created without touching any other project; nothing was deployed."
+else
+  echo "DONE: 19 projects and 19 configured Git Compose resources created; nothing was deployed."
+fi

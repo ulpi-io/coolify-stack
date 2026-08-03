@@ -49,13 +49,13 @@ x-api-environment: &api-environment
   CACHE_STORE: redis
   CACHE_PREFIX: "social-reply:cache:"
   SESSION_DRIVER: redis
-  SESSION_DOMAIN: .socialreply.com
+  SESSION_DOMAIN: .socialreply.ai
   SESSION_SECURE_COOKIE: "true"
   SESSION_SAME_SITE: lax
   QUEUE_CONNECTION: redis
   HORIZON_PREFIX: "social-reply:horizon:"
 
-  SANCTUM_STATEFUL_DOMAINS: app.socialreply.com
+  SANCTUM_STATEFUL_DOMAINS: socialreply.ai
   CORS_ALLOWED_ORIGINS: ${APP_FRONTEND_URL:?required}
 
   FILESYSTEM_DISK: s3

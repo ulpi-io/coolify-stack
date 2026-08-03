@@ -31,7 +31,7 @@ for generator in platforms/*/generate-env.sh; do
     n8n) expected_app_url=https://workflow.con.fyi ;;
     twenty) expected_app_url=https://crm.con.fyi ;;
     buzz) expected_app_url=https://buzz.con.fyi ;;
-    social-reply) expected_app_url=https://api.socialreply.com ;;
+    social-reply) expected_app_url=https://api.socialreply.ai ;;
     *) expected_app_url='https://www.*' ;;
   esac
   if [[ "$expected_app_url" = 'https://www.*' ]]; then
@@ -60,7 +60,7 @@ grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","
   echo "Albert web/API domain mapping is missing" >&2
   exit 1
 }
-grep -Fq '{"name":"web","domain":"https://app.socialreply.com"},{"name":"nginx","domain":"https://api.socialreply.com"},{"name":"reverb","domain":"https://ws.socialreply.com"}' scripts/create-resources.sh || {
+grep -Fq '{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}' scripts/create-resources.sh || {
   echo "SocialReply web/API/Reverb domain mapping is missing" >&2
   exit 1
 }

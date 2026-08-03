@@ -39,11 +39,11 @@ tmp=$(mktemp "$(dirname "$output")/.social-reply.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://api.socialreply.com
-APP_FRONTEND_URL=https://app.socialreply.com
-NEXT_PUBLIC_BASE_URL=https://app.socialreply.com
-NEXT_PUBLIC_API_BASE_URL=https://api.socialreply.com
-NEXT_PUBLIC_REVERB_HOST=ws.socialreply.com
+APP_URL=https://api.socialreply.ai
+APP_FRONTEND_URL=https://socialreply.ai
+NEXT_PUBLIC_BASE_URL=https://socialreply.ai
+NEXT_PUBLIC_API_BASE_URL=https://api.socialreply.ai
+NEXT_PUBLIC_REVERB_HOST=ws.socialreply.ai
 NEXT_PUBLIC_REVERB_PORT=443
 NEXT_PUBLIC_REVERB_SCHEME=https
 SOCIAL_REPLY_SOURCE_REF=09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e
@@ -78,7 +78,7 @@ YOUTUBE_VIDEO_MAX_ITEMS=100
 YOUTUBE_FAILURE_BACKOFF_SECONDS=60
 YOUTUBE_QUOTA_BUDGET_UNITS=9000
 YOUTUBE_REPLY_RESERVE_UNITS=1000
-MAIL_FROM_ADDRESS=hello@socialreply.com
+MAIL_FROM_ADDRESS=hello@socialreply.ai
 EOF
 } > "$tmp"
 chmod 600 "$tmp"
