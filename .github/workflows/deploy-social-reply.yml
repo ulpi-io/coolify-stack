@@ -1,0 +1,179 @@
+name: Deploy SocialReply production
+
+on:
+  repository_dispatch:
+    types:
+      - deploy-production
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-character commit SHA from ulpi-io/social-reply main
+        required: true
+        type: string
+
+concurrency:
+  group: production-social-reply
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  promote-and-deploy:
+    name: Promote and deploy SocialReply
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout coolify-stack main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate deployment request
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_SHA: ${{ github.event.client_payload.source_sha || inputs.source_sha }}
+          REQUESTED_SLUG: ${{ github.event.client_payload.slug || 'social-reply' }}
+          REQUESTED_REPOSITORY: ${{ github.event.client_payload.source_repository || 'ulpi-io/social-reply' }}
+          REQUESTED_BRANCH: ${{ github.event.client_payload.source_branch || 'main' }}
+          SOURCE_RUN_ID: ${{ github.event.client_payload.run_id || '' }}
+        run: |
+          [[ "$REQUESTED_SLUG" == social-reply ]] || {
+            echo "::error::Only the social-reply slug is accepted."
+            exit 1
+          }
+          [[ "$REQUESTED_REPOSITORY" == ulpi-io/social-reply ]] || {
+            echo "::error::Only ulpi-io/social-reply is accepted."
+            exit 1
+          }
+          [[ "$REQUESTED_BRANCH" == main ]] || {
+            echo "::error::Only SocialReply main may deploy."
+            exit 1
+          }
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::The requested source SHA is invalid."
+            exit 1
+          }
+          if [[ "$EVENT_NAME" == repository_dispatch && -z "$SOURCE_RUN_ID" ]]; then
+            echo "::error::Repository dispatch requests must identify their source CI run."
+            exit 1
+          fi
+          echo "source_sha=$REQUESTED_SHA" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=$SOURCE_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Verify GitHub App configuration
+        env:
+          APP_ID: ${{ vars.OGG_CD_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.OGG_CD_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$APP_ID" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo "::error::Configure OGG_CD_APP_ID and OGG_CD_APP_PRIVATE_KEY."
+            exit 1
+          fi
+
+      - name: Create scoped SocialReply read token
+        id: source-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.OGG_CD_APP_ID }}
+          private-key: ${{ secrets.OGG_CD_APP_PRIVATE_KEY }}
+          owner: ulpi-io
+          repositories: social-reply
+          permission-contents: read
+
+      - name: Verify the requested SHA is current SocialReply main
+        env:
+          SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: |
+          current_main=$(curl --fail --silent --show-error \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer $SOURCE_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            https://api.github.com/repos/ulpi-io/social-reply/commits/main \
+            | jq -er '.sha')
+          [[ "$current_main" == "$SOURCE_SHA" ]] || {
+            echo "::error::Requested SHA is no longer SocialReply main; a newer merge must deploy instead."
+            exit 1
+          }
+
+      - name: Promote the immutable SocialReply source ref
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: scripts/promote-social-reply-ref.sh --apply "$SOURCE_SHA"
+
+      - name: Validate the complete stack recipe
+        run: scripts/validate-all.sh
+
+      - name: Persist the production source ref
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: |
+          if git diff --quiet -- platforms/social-reply/generate-env.sh; then
+            echo 'SocialReply source ref was already current.'
+            exit 0
+          fi
+          git config user.name 'OGG CD Bot'
+          git config user.email 'ogg-cd-bot@users.noreply.github.com'
+          git add platforms/social-reply/generate-env.sh
+          git diff --cached --check
+          git commit -m "deploy(social-reply): promote ${SOURCE_SHA:0:12}"
+          git push origin HEAD:main
+
+      - name: Verify restricted server deployment configuration
+        env:
+          DEPLOY_HOST: ${{ vars.OGG_CD_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.OGG_CD_KNOWN_HOSTS }}
+          DEPLOY_PRIVATE_KEY: ${{ secrets.OGG_CD_SSH_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$DEPLOY_HOST" || -z "$DEPLOY_KNOWN_HOSTS" || -z "$DEPLOY_PRIVATE_KEY" ]]; then
+            echo "::error::Configure OGG_CD_HOST, OGG_CD_KNOWN_HOSTS, and OGG_CD_SSH_PRIVATE_KEY."
+            exit 1
+          fi
+
+      - name: Deploy only the existing SocialReply Coolify resource
+        env:
+          DEPLOY_HOST: ${{ vars.OGG_CD_HOST }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.OGG_CD_KNOWN_HOSTS }}
+          DEPLOY_PRIVATE_KEY: ${{ secrets.OGG_CD_SSH_PRIVATE_KEY }}
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+        run: |
+          key_file="$RUNNER_TEMP/ogg-socialreply-cd-key"
+          known_hosts_file="$RUNNER_TEMP/ogg-socialreply-known-hosts"
+          cleanup() {
+            rm -f "$key_file" "$known_hosts_file"
+          }
+          trap cleanup EXIT
+          umask 077
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$key_file"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$known_hosts_file"
+          ssh \
+            -F /dev/null \
+            -i "$key_file" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$known_hosts_file" \
+            "root@$DEPLOY_HOST" \
+            "deploy social-reply $SOURCE_SHA"
+
+      - name: Record deployment
+        env:
+          SOURCE_SHA: ${{ steps.request.outputs.source_sha }}
+          SOURCE_RUN_ID: ${{ steps.request.outputs.source_run_id }}
+        run: |
+          {
+            echo '### SocialReply production deployment'
+            echo
+            echo "- Source: \`ulpi-io/social-reply@$SOURCE_SHA\`"
+            echo "- Coolify resource: \`SocialReply Stack\`"
+            echo '- Scope: SocialReply containers only'
+            echo '- Shared infrastructure: unchanged'
+            if [[ -n "$SOURCE_RUN_ID" ]]; then
+              echo "- Source CI: https://github.com/ulpi-io/social-reply/actions/runs/$SOURCE_RUN_ID"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
