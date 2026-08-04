@@ -256,7 +256,9 @@ to its own loopback namespace; the production host Docker socket is never
 mounted. A pinned TCP proxy is the only QM service attached to the shared
 network and bridges database traffic from QM's private network to PostgreSQL.
 Claude runs through `CLAUDE_CODE_OAUTH_TOKEN`, and Resend handles the built-in
-broker's one-time sign-in email.
+broker's one-time sign-in email. The sign-in allowlist includes
+`cip@opengrowthgroup.co` and `tania@opengrowthgroup.co`; only the configured
+administrator receives `org_admin`.
 
 The pinned QM dependency tree currently reports unresolved high-severity
 production findings, including transitive `undici` findings with no upstream fix. The

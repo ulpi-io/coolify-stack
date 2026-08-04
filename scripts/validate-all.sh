@@ -246,6 +246,18 @@ grep -Eq '^QM_SOURCE_REF=[0-9a-f]{40}$' platforms/qm/generate-env.sh || {
   echo "QM must pin one immutable private-fork source commit SHA" >&2
   exit 1
 }
+# Match the literal generator interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'ADMIN_GRANTS=$admin_email:org_admin' platforms/qm/generate-env.sh || {
+  echo "QM must keep organization administration scoped to the configured administrator" >&2
+  exit 1
+}
+# Match the literal generator interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'AUTH_ALLOWED_EMAILS=$admin_email,tania@opengrowthgroup.co' platforms/qm/generate-env.sh || {
+  echo "QM must allow Cip and Tania to sign in" >&2
+  exit 1
+}
 # Match the literal Compose-time interpolation expression.
 # shellcheck disable=SC2016
 grep -Fq 'context: https://github.com/ulpi-io/qm.git#${QM_SOURCE_REF:?required}' platforms/qm/compose.yaml || {
