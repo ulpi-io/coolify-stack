@@ -256,6 +256,10 @@ fi
   echo "Only QM core and its one-shot builder may share the private Docker network namespace" >&2
   exit 1
 }
+if sed -n '/^  core:/,/^  web-ui:/p' platforms/qm/compose.yaml | grep -Eq '^    (expose|ports):'; then
+  echo "QM core must not publish or expose ports while sharing the DinD network namespace" >&2
+  exit 1
+fi
 grep -Fq 'HARNESS: claude' platforms/qm/compose.yaml || {
   echo "QM must use the approved Claude harness" >&2
   exit 1

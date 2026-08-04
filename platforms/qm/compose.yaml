@@ -186,7 +186,6 @@ services:
       WORKERS: "4"
     volumes:
       - qm-data:/data
-    expose: ["8080"]
     depends_on:
       sandbox-builder:
         condition: service_completed_successfully
