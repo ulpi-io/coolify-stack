@@ -6,3 +6,5 @@ FACEBOOK_APP_ID=replace-with-facebook-app-id
 FACEBOOK_APP_SECRET=replace-with-facebook-app-secret
 INSTAGRAM_APP_ID=replace-with-instagram-app-id
 INSTAGRAM_APP_SECRET=replace-with-instagram-app-secret
+YOUTUBE_CLIENT_ID=replace-with-youtube-client-id
+YOUTUBE_CLIENT_SECRET=replace-with-youtube-client-secret

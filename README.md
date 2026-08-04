@@ -229,6 +229,14 @@ either credential pair through the scoped updater above.
 These are OAuth callbacks, not Meta webhook endpoints; the deployed Postiz
 provider does not implement Meta's webhook verify-token challenge.
 
+Postiz's YouTube provider uses `YOUTUBE_CLIENT_ID` and
+`YOUTUBE_CLIENT_SECRET`. Configure the OAuth client as a Google web application
+with this exact authorized redirect URI:
+
+```text
+https://post.con.fyi/integrations/social/youtube
+```
+
 ## Build sources
 
 Existing published images are used for Plane, Postiz, n8n, Twenty, Buzz, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.
