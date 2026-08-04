@@ -117,7 +117,7 @@ stacks=(
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
   'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
   'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}]|Production SocialReply conversational-marketing platform.'
-  'qm|QM|/platforms/qm/compose.yaml|QM Stack|[{"name":"portal","domain":"https://agents.con.fyi"}]|Production QM agent workspace with a private local sandbox daemon.'
+  'qm|QM Agents|/platforms/qm/compose.yaml|QM Stack|[{"name":"portal","domain":"https://agents.con.fyi"}]|Production QM agent workspace with a private local sandbox daemon.'
 )
 
 if [[ -n "$only_slug" ]]; then
