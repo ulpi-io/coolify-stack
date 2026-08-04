@@ -139,6 +139,18 @@ grep -Fq 'FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}' platforms/postiz/compos
   echo "Postiz must pass the optional Facebook app secret into its provider runtime" >&2
   exit 1
 }
+# Match the literal Compose-time interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}' platforms/postiz/compose.yaml || {
+  echo "Postiz must pass the optional standalone Instagram app ID into its provider runtime" >&2
+  exit 1
+}
+# Match the literal Compose-time interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}' platforms/postiz/compose.yaml || {
+  echo "Postiz must pass the optional standalone Instagram app secret into its provider runtime" >&2
+  exit 1
+}
 
 grep -Fq 'BUZZ_REQUIRE_RELAY_MEMBERSHIP: "true"' platforms/buzz/compose.yaml || {
   echo "Buzz must use closed relay membership by default" >&2

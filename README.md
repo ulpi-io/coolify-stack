@@ -205,14 +205,26 @@ prints the exact single-app deployment command instead. Empty values are
 rejected unless `--allow-empty` is supplied intentionally. The localhost-only
 Coolify API is disabled and the temporary API token is revoked on exit.
 
-Postiz's standard Facebook and Instagram providers use `FACEBOOK_APP_ID` and
-`FACEBOOK_APP_SECRET`. Configure both through the scoped updater above. The
-same Meta app must allow these OAuth redirect URIs:
+Postiz's Facebook and Facebook Business-linked Instagram providers use
+`FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET`. The Meta app must allow these
+OAuth redirect URIs:
 
 ```text
 https://post.con.fyi/integrations/social/facebook
 https://post.con.fyi/integrations/social/instagram
 ```
+
+Postiz's `Instagram (Standalone)` provider instead uses `INSTAGRAM_APP_ID` and
+`INSTAGRAM_APP_SECRET`, copied from Meta's Instagram API setup screen. Its OAuth
+redirect URI is:
+
+```text
+https://post.con.fyi/integrations/social/instagram-standalone
+```
+
+Do not put Instagram App credentials in the `FACEBOOK_*` variables: Facebook
+OAuth rejects that Instagram App ID with `PLATFORM__INVALID_APP_ID`. Configure
+either credential pair through the scoped updater above.
 
 These are OAuth callbacks, not Meta webhook endpoints; the deployed Postiz
 provider does not implement Meta's webhook verify-token challenge.
