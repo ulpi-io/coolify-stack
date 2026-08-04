@@ -297,7 +297,8 @@ network and bridges database traffic from QM's private network to PostgreSQL.
 Claude runs through `CLAUDE_CODE_OAUTH_TOKEN`, and Resend handles the built-in
 broker's one-time sign-in email. The sign-in allowlist includes
 `cip@opengrowthgroup.co` and `tania@opengrowthgroup.co`; only the configured
-administrator receives `org_admin`.
+administrator receives `org_admin`. Sign-in messages are sent as
+`Agents <no-reply@agents.con.fyi>` from the Agents sending domain.
 
 The pinned QM dependency tree currently reports unresolved high-severity
 production findings, including transitive `undici` findings with no upstream fix. The

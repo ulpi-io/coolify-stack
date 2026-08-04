@@ -77,7 +77,7 @@ PORTAL_SESSION_SECRET=$(random_hex)
 AUTH_CLIENT_SECRET=$(random_hex)
 AUTH_TOKEN_SECRET=$(random_hex)
 AUTH_SIGNING_JWK=$(generate_jwk)
-AUTH_EMAIL_FROM=Agents <onboarding@resend.dev>
+AUTH_EMAIL_FROM=Agents <no-reply@agents.con.fyi>
 RESEND_API_KEY=$resend_key
 EOF
 } > "$tmp"

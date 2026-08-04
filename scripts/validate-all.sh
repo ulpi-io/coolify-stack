@@ -306,6 +306,10 @@ grep -Fq 'AUTH_ALLOWED_EMAILS=$admin_email,tania@opengrowthgroup.co' platforms/q
   echo "QM must allow Cip and Tania to sign in" >&2
   exit 1
 }
+grep -Fq 'AUTH_EMAIL_FROM=Agents <no-reply@agents.con.fyi>' platforms/qm/generate-env.sh || {
+  echo "QM must send sign-in email from the Agents domain" >&2
+  exit 1
+}
 # Match the literal Compose-time interpolation expression.
 # shellcheck disable=SC2016
 grep -Fq 'context: https://github.com/ulpi-io/qm.git#${QM_SOURCE_REF:?required}' platforms/qm/compose.yaml || {
