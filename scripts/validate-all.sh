@@ -296,6 +296,14 @@ if rg -n '^\s+(MODEL_PROVIDER|ANTHROPIC_API_KEY):' platforms/qm/compose.yaml >/d
   echo "QM must not override Claude subscription authentication with an Anthropic API key" >&2
   exit 1
 fi
+grep -Fq 'aliases: [qm-auth.internal]' platforms/qm/compose.yaml || {
+  echo "QM's built-in auth broker must use a production-safe private-network hostname" >&2
+  exit 1
+}
+[[ $(grep -Fc 'http://qm-auth.internal:8080' platforms/qm/compose.yaml) == 4 ]] || {
+  echo "QM portal must use the private auth-broker origin for every server-side OIDC endpoint" >&2
+  exit 1
+}
 grep -Fq 'process.env.CLAUDE_CODE_OAUTH_TOKEN' platforms/qm/compose.yaml || {
   echo "QM must recognize Claude subscription auth in its portal readiness check" >&2
   exit 1

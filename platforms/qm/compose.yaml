@@ -314,7 +314,9 @@ services:
       AUTH_BRAND_NAME: Agents
       RESEND_API_KEY: ${RESEND_API_KEY:?required}
     expose: ["8080"]
-    networks: [internal]
+    networks:
+      internal:
+        aliases: [qm-auth.internal]
     depends_on:
       core:
         condition: service_healthy
@@ -346,15 +348,15 @@ services:
       PORTAL_XFF_TRUSTED_HOPS: "1"
       WEB_UI_UPSTREAM: http://web-ui:8080
       ADMIN_UPSTREAM: http://admin:8080
-      AUTH_BROKER_UPSTREAM: http://auth:8080
+      AUTH_BROKER_UPSTREAM: http://qm-auth.internal:8080
       AUTH_BROKER_PREFIX: /idp
       OIDC_CLIENT_ID: qm-portal
       OIDC_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?required}
       OIDC_ISSUER: https://agents.con.fyi/idp
       OIDC_AUTH_ENDPOINT: https://agents.con.fyi/idp/authorize
-      OIDC_TOKEN_ENDPOINT: http://auth:8080/token
-      OIDC_USERINFO_ENDPOINT: http://auth:8080/userinfo
-      OIDC_JWKS_URI: http://auth:8080/.well-known/jwks.json
+      OIDC_TOKEN_ENDPOINT: http://qm-auth.internal:8080/token
+      OIDC_USERINFO_ENDPOINT: http://qm-auth.internal:8080/userinfo
+      OIDC_JWKS_URI: http://qm-auth.internal:8080/.well-known/jwks.json
       OIDC_SCOPES: openid email
       OIDC_PRINCIPAL_CLAIM: email
       OIDC_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:?required}
