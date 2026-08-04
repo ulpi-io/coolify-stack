@@ -175,6 +175,18 @@ grep -Fq 'TIKTOK_CLIENT_SECRET: ${TIKTOK_CLIENT_SECRET:-}' platforms/postiz/comp
   echo "Postiz must pass the optional TikTok OAuth client secret into its provider runtime" >&2
   exit 1
 }
+# Match the literal Compose-time interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'LINKEDIN_CLIENT_ID: ${LINKEDIN_CLIENT_ID:-}' platforms/postiz/compose.yaml || {
+  echo "Postiz must pass the optional LinkedIn OAuth client ID into its provider runtime" >&2
+  exit 1
+}
+# Match the literal Compose-time interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'LINKEDIN_CLIENT_SECRET: ${LINKEDIN_CLIENT_SECRET:-}' platforms/postiz/compose.yaml || {
+  echo "Postiz must pass the optional LinkedIn OAuth client secret into its provider runtime" >&2
+  exit 1
+}
 
 grep -Fq 'BUZZ_REQUIRE_RELAY_MEMBERSHIP: "true"' platforms/buzz/compose.yaml || {
   echo "Buzz must use closed relay membership by default" >&2

@@ -10,3 +10,5 @@ YOUTUBE_CLIENT_ID=replace-with-youtube-client-id
 YOUTUBE_CLIENT_SECRET=replace-with-youtube-client-secret
 TIKTOK_CLIENT_ID=replace-with-tiktok-client-id
 TIKTOK_CLIENT_SECRET=replace-with-tiktok-client-secret
+LINKEDIN_CLIENT_ID=replace-with-linkedin-client-id
+LINKEDIN_CLIENT_SECRET=replace-with-linkedin-client-secret

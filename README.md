@@ -247,6 +247,15 @@ https://post.con.fyi/integrations/social/tiktok
 TikTok `pull_by_url` media transfer also requires domain verification for
 `post.con.fyi`, which covers Postiz media URLs under `/uploads/`.
 
+Postiz's LinkedIn profile and company-page providers share
+`LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`. Configure both exact OAuth
+redirect URLs in the LinkedIn application:
+
+```text
+https://post.con.fyi/integrations/social/linkedin
+https://post.con.fyi/integrations/social/linkedin-page
+```
+
 ## Build sources
 
 Existing published images are used for Plane, Postiz, n8n, Twenty, Buzz, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.
