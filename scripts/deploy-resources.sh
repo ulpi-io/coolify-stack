@@ -73,6 +73,7 @@ resource_specs=(
   'twenty|Twenty Stack'
   'buzz|Buzz Stack'
   'social-reply|SocialReply Stack'
+  'qm|QM Stack'
 )
 
 if [[ -n "$only_slug" ]]; then
@@ -197,6 +198,6 @@ done
 if [[ -n "$only_slug" ]]; then
   echo "DONE: $only_slug deployed without touching any other resource."
 else
-  [[ $deployed_count -eq 19 ]] || die "expected to deploy 19 resources, deployed $deployed_count"
-  echo "DONE: all 19 Coolify resources deployed in dependency order."
+  [[ $deployed_count -eq 20 ]] || die "expected to deploy 20 resources, deployed $deployed_count"
+  echo "DONE: all 20 Coolify resources deployed in dependency order."
 fi

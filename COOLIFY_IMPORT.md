@@ -6,9 +6,14 @@ The repository workflow is `scripts/create-resources.sh`. It generates every env
 scripts/create-resources.sh --check
 scripts/create-resources.sh --apply --reset \
   --buzz-owner-pubkey "$BUZZ_OWNER_PUBKEY" \
+  --qm-claude-token-file /secure/path/claude-setup-token \
+  --qm-resend-key-file /secure/path/resend-api-key \
   --ssh-key /absolute/path/to/the/server/ssh/key
 scripts/create-resources.sh --apply --only social-reply \
   --env-file /secure/path/social-reply.env \
+  --ssh-key /absolute/path/to/the/server/ssh/key
+scripts/create-resources.sh --apply --only qm \
+  --env-file /secure/path/qm.env \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
@@ -32,6 +37,12 @@ platforms/buzz/generate-env.sh \
   --shared-env generated/platforms/buzz.shared.env \
   --output generated/buzz.env \
   --owner-pubkey "$BUZZ_OWNER_PUBKEY"
+
+platforms/qm/generate-env.sh \
+  --shared-env generated/platforms/qm.shared.env \
+  --output generated/qm.env \
+  --claude-token-file /secure/path/claude-setup-token \
+  --resend-key-file /secure/path/resend-api-key
 ```
 
 Keep `generated/` outside version control and in an encrypted secret store. The infrastructure env is the recovery source for every database, ACL, bucket, RabbitMQ, Qdrant, and Temporal credential.
@@ -45,7 +56,8 @@ Before importing anything:
 3. Supply Buzz's 64-character hex Nostr owner public key and securely retain the matching private key outside the server recipe.
 4. SocialReply's operator allowlist defaults to the `--operator-email` value (`cip@opengrowthgroup.co` by default). Confirm it before import.
 5. Add optional OAuth, payment, social-provider, and API credentials only to the platform that owns them. SocialReply declares optional provider secrets as pass-through variables so an unset secret remains absent rather than becoming a misleading blank credential.
-6. The backup destination values are intentionally blank. Configure `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
+6. QM requires a mode-`0600` Claude setup-token file and Resend API-key file. Its dedicated Docker-in-Docker service is privileged but does not mount the production host Docker socket.
+7. The backup destination values are intentionally blank. Configure `BACKUP_S3_BUCKET`, `BACKUP_S3_ACCESS_KEY`, `BACKUP_S3_SECRET_KEY`, and `BACKUP_S3_ENDPOINT` for storage outside this server before enabling the infrastructure `backup` profile. The shared MinIO instance is not an off-site backup target for itself.
 
 ## 3. Create the shared external network
 
@@ -95,6 +107,7 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/social-reply` | `web` | `https://socialreply.ai` |
 | `platforms/social-reply` | `nginx` | `https://api.socialreply.ai` |
 | `platforms/social-reply` | `reverb` | `https://ws.socialreply.ai` |
+| `platforms/qm` | `portal` | `https://agents.con.fyi` |
 
 Coolify/Traefik owns public routing and TLS. Do not add host-published database or backing-service ports to these recipes.
 

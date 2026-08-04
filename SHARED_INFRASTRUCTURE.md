@@ -11,7 +11,7 @@ The following capabilities are reused by multiple compatible applications. Shari
 | Shared capability | Technology | Current consumers | Purpose | Isolation |
 | --- | --- | --- | --- | --- |
 | `mysql` | MySQL 8.4 LTS | Lokei, Albert, Record Cloud, Insight, Kensi AI, AgentsHQ, Togglebox MySQL edition, OpenPay, OpenKudos | Primary relational database for applications currently built for MySQL | One database and restricted user per application |
-| `postgres` | PostgreSQL 16 | Plane, Postiz, Nudgra, n8n, Twenty, Buzz, Postiz Temporal | Primary relational database only for applications that already use PostgreSQL | One database, `NOSUPERUSER` role, schema ownership, and connection limit per application |
+| `postgres` | PostgreSQL 17 plus pgvector | Plane, Postiz, Nudgra, n8n, Twenty, Buzz, SocialReply, QM, Postiz Temporal | Primary relational database only for applications that already use PostgreSQL | One database, `NOSUPERUSER` role, schema ownership, and connection limit per application; extensions enabled per database |
 | `valkey` | Valkey 8 | Plane | Plane's existing Valkey-compatible cache contract and future verified Valkey consumers | Dedicated ACL user; disposable cache policy |
 | `redis-cache` | Redis 7.2 | Twenty; Postiz cache when classified; OpenPay optional | Disposable cache, sessions, rate limits, and short-lived locks for Redis-bound applications | One ACL user per application; key prefixes where supported |
 | `redis-queue` | Redis 7.2 | Lokei, Albert, Kensi AI, OpenKudos, n8n, Postiz, Buzz, SocialReply; OpenPay optional | Durable queues, Horizon/BullMQ jobs, retries, pub/sub, presence, and workflow state | One ACL user per application; AOF `everysec`, `noeviction` |
@@ -24,7 +24,7 @@ The following capabilities are reused by multiple compatible applications. Shari
 | `monitoring` | Monitoring and alerting platform | All production services and applications | Health, capacity, queue, worker, backup, and certificate monitoring | Application/service labels, dashboards, alert routes, and ownership |
 | `backup` | Scheduled off-server backup capability | Every stateful production service | Database dumps/snapshots, object-storage protection, Qdrant/Elasticsearch snapshots, and restore testing | Separate retention, encryption, restore procedure, and evidence per application/service |
 
-The selected common database baselines are **PostgreSQL 16** and **MySQL 8.4 LTS**. This is a greenfield deployment: every application receives a fresh empty database and there is no application-data migration, legacy-volume attachment, database cutover, or old-instance rollback. Application schema migrations still run from empty, and backup/restore testing begins after initialized production data exists.
+The selected common database baselines are **PostgreSQL 17 plus pgvector** and **MySQL 8.4 LTS**. Every application receives its own database and role. Application schema migrations still run within that isolated database, and backup/restore testing begins after initialized production data exists.
 
 ## Shared MinIO Object Storage
 
@@ -41,40 +41,32 @@ The object-storage implementation is **one shared MinIO deployment** managed by 
 
 Application configuration uses the MinIO S3 endpoint plus application-specific access key, secret key, bucket, region placeholder, and path-style addressing when required by the application's S3 client. Exact environment-variable names remain application-specific.
 
-## Shared PostgreSQL 16 Compatibility
+## Shared PostgreSQL 17 Compatibility
 
-PostgreSQL 16 is the common major for the shared PostgreSQL service. It directly matches n8n, Twenty, and Postiz's Temporal database. The source audit found no PostgreSQL 17-only schema feature in Postiz, Nudgra, or Buzz and no PostgreSQL 15-only dependency in Plane. The `pgcrypto` extension required by Nudgra and Buzz is available in PostgreSQL 16.
+PostgreSQL 17 is the common major for the shared PostgreSQL service. The pgvector image supplies the standard server plus vector support for SocialReply without requiring a second PostgreSQL process. The source audit found no PostgreSQL 16-only dependency in n8n, Twenty, or Postiz Temporal and no PostgreSQL 15-only dependency in Plane. Extensions are enabled only inside the databases that require them.
 
-| Consumer | Current repository/recipe baseline | PostgreSQL 16 decision | Required acceptance gate |
+| Consumer | Current repository/recipe baseline | PostgreSQL 17 decision | Required acceptance gate |
 | --- | --- | --- | --- |
-| Plane | PostgreSQL 15.7 | Compatible target for a fresh PostgreSQL 16 database | Run schema migrations from empty; validate API, web, workers, RabbitMQ integration, and a backup/restore of initialized sentinel data |
-| Postiz application | PostgreSQL 17; Prisma 6.5 with the standard PostgreSQL provider | Compatible target based on the inspected schema; no PostgreSQL 17-only type or extension was found | Create the schema from the pinned application on PostgreSQL 16 and validate migrations, publishing flows, workers, and initialized-data backup/restore |
-| Postiz Temporal | PostgreSQL 16 with Temporal's `postgres12` compatibility plugin | Direct match | Provision isolated Temporal persistence and visibility databases/roles; run Temporal schema setup and workflow smoke tests |
-| Nudgra OSS | PostgreSQL 17; Drizzle, `pg`, `pg-boss`, and `pgcrypto` | Compatible target based on inspected dependencies and migrations | Run all migrations from empty on PostgreSQL 16 and validate authentication, CRUD, realtime paths, `pg-boss` jobs, and initialized-data backup/restore |
-| n8n | PostgreSQL 16 | Direct match | Run n8n migrations against its fresh isolated database and validate editor, webhook, queue execution, retries, worker, task runner, and backup/restore |
-| Twenty | PostgreSQL 16; Twenty's development documentation also requires PostgreSQL 16 | Direct match | Run migrations once against its fresh isolated database and validate app, worker, `pg-boss`, and backup/restore |
-| Buzz | PostgreSQL 17 in the official VPS Compose; SQLx migrations with `pgcrypto` and no PostgreSQL 17-only feature found | Compatible target for a fresh isolated PostgreSQL 16 database | Run embedded migrations from empty twice; validate relay events, search, membership, media, git, and initialized-data backup/restore |
+| Plane | PostgreSQL 15.7 | Compatible target for its isolated PostgreSQL 17 database | Validate API, web, workers, RabbitMQ integration, and backup/restore |
+| Postiz application | PostgreSQL 17; Prisma with the standard PostgreSQL provider | Direct major match | Validate migrations, publishing flows, workers, and backup/restore |
+| Postiz Temporal | PostgreSQL 16 with Temporal's `postgres12` compatibility plugin | Compatible target | Validate both Temporal persistence databases and workflow execution |
+| Nudgra OSS | PostgreSQL 17; Drizzle, `pg`, `pg-boss`, and `pgcrypto` | Direct major match | Validate authentication, CRUD, realtime paths, `pg-boss`, and backup/restore |
+| n8n | PostgreSQL 16 | Compatible target | Validate editor, webhook, queue execution, retries, workers, and backup/restore |
+| Twenty | PostgreSQL 16 | Compatible target | Validate app, worker, `pg-boss`, and backup/restore |
+| Buzz | PostgreSQL 17 in the official VPS Compose; SQLx migrations with `pgcrypto` | Direct major match | Validate relay events, search, membership, media, git, and backup/restore |
+| SocialReply | PostgreSQL 17 plus pgvector | Direct major and extension match | Validate migrations, vector queries, Horizon, Reverb, and backup/restore |
+| QM | Standard PostgreSQL through `pg` and durable Postgres stores | Compatible target | Validate startup migrations, sessions, runs, grants, artifacts, and backup/restore |
 
-One PostgreSQL 16 server process does not mean one shared schema. Each application receives its own database and non-superuser owner role. Temporal receives its required persistence databases and roles separately from the Postiz application database. Extensions are enabled only in the database that needs them.
+One PostgreSQL 17 server process does not mean one shared schema. Each application receives its own database and non-superuser owner role. Temporal receives its required persistence databases and roles separately from the Postiz application database. Extensions are enabled only in the database that needs them.
 
-No repository recipe's PostgreSQL data volume is reused. The shared PostgreSQL 16 service initializes a new volume, and each application initializes a new isolated database through its pinned schema migrations.
+The migrated shared PostgreSQL 17 data volume remains the durable server volume. Adding QM creates only a new `qm` role and database; it does not recreate the server or modify another application's database.
 
-## SocialReply Dedicated PostgreSQL Exception
+## PostgreSQL Extension Isolation
 
-SocialReply does not target the shared PostgreSQL 16 process. The audited source
-contract at commit `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e` explicitly locks
-PostgreSQL 17 plus pgvector, enables the `vector` extension during migration,
-and contains vector columns with an HNSW index. This satisfies the
-shared-by-default policy's incompatible-major/extension exception.
-
-`platforms/social-reply` therefore owns one private PostgreSQL 17 plus pgvector
-container and persistent volume. The image is pinned to the verified
-multi-architecture digest for `pgvector/pgvector:0.8.1-pg17-bookworm`. No host
-port or public route is published. SocialReply still reuses shared Redis,
-MinIO, Mailpit, monitoring, and off-server backup capabilities. Reconsider
-sharing only after the common PostgreSQL platform is deliberately upgraded to
-17 with pgvector and SocialReply's migrations, vector queries, backup, and
-restore gates pass on that target.
+The shared PostgreSQL image contains pgvector, but `CREATE EXTENSION vector` is
+run only inside SocialReply's database. Nudgra and Buzz receive `pgcrypto` only
+inside their own databases. QM requires no additional extension. Database and
+role isolation remains the primary boundary for every consumer.
 
 ## Shared MySQL 8.4 LTS Compatibility
 
@@ -250,13 +242,14 @@ Statuses:
 | Open Growth Group website | None | None | None | None | None | Stateless website |
 | OpenPay | Shared MySQL | Database cache by current defaults; Shared Valkey is available | Database queue by current defaults; Horizon requires Redis/Valkey when enabled | Shared object storage when S3 is enabled | None selected; DynamoDB configuration remains disabled | Pinned Compose includes MySQL, Redis, Horizon, and phpMyAdmin; phpMyAdmin must not ship publicly and DynamoDB is out of scope |
 | OpenKudos / TeamToast | Shared MySQL | Shared Valkey | Shared Valkey; worker and scheduler | Pending | None observed | Pinned production Compose uses MySQL 8.0.40 and Redis 7.4 |
-| Plane | Shared PostgreSQL 16 after fresh schema validation | Shared Valkey | Shared RabbitMQ | Shared object storage after bucket-policy validation | Shared RabbitMQ | Current recipe uses PostgreSQL 15.7, Valkey 7.2.11, RabbitMQ 3.13.6, and MinIO; no data is migrated |
-| Postiz | Shared PostgreSQL 16 after fresh Prisma schema validation | Shared Valkey; cache/queue endpoint classification pending | Shared Temporal using a Postiz namespace and isolated task queues | Fresh uploads storage; S3 support Pending | Shared Elasticsearch using isolated indices/role | Pinned fork uses PostgreSQL 17, Redis 7.2, Temporal 1.28.1, Temporal PostgreSQL 16, and Elasticsearch 7.17.27; no data is migrated |
-| Nudgra OSS | Shared PostgreSQL 16 after fresh migration, `pgcrypto`, and `pg-boss` validation | None observed | PostgreSQL `pg-boss` inside Nudgra's isolated database | None observed | None observed | Pinned Compose uses PostgreSQL 17; inspected migrations require `pgcrypto` but no PostgreSQL 17-only feature was found; no data is migrated |
-| n8n | Shared PostgreSQL 16 after fresh schema validation | None | Shared Valkey queue; n8n worker and external runners | Fresh local n8n volume; external binary storage Pending | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 6, queue mode, worker, and task runners; no data is migrated |
-| Twenty | Shared PostgreSQL 16 after fresh schema validation | Shared Redis cache | PostgreSQL `pg-boss`; no Redis queue required by current recipe | Shared object storage when S3 mode is enabled | None observed | Current Coolify recipe uses PostgreSQL 16, Redis 7, worker, local storage, and `pg-boss`; no data is migrated |
-| Buzz | Shared PostgreSQL 16 after fresh SQLx migration validation | Shared durable Redis for pub/sub, presence, replay protection, and rate limits | Redis pub/sub; no separate worker observed | Shared object storage with isolated `buzz-media` bucket; app-scoped git scratch volume | None observed | Official production Compose uses PostgreSQL 17, Redis 7 with AOF, MinIO, and a git volume; the recipe preserves these contracts through shared isolated services |
-| SocialReply | Dedicated PostgreSQL 17 plus pgvector | Shared durable Redis | Shared Redis; Laravel Horizon and Reverb remain application processes | Shared object storage with isolated `social-reply` bucket | pgvector remains inside its dedicated database | Audited source explicitly locks PostgreSQL 17 plus pgvector and contains vector schema/indexes; API, nginx, Horizon, scheduler, Reverb, and Next.js remain separate production processes |
+| Plane | Shared PostgreSQL 17 | Shared Valkey | Shared RabbitMQ | Shared object storage after bucket-policy validation | Shared RabbitMQ | Isolated database and role |
+| Postiz | Shared PostgreSQL 17 | Shared Valkey | Shared Temporal using a Postiz namespace and isolated task queues | Fresh uploads storage; S3 support Pending | Shared Elasticsearch using isolated indices/role | Isolated application and Temporal databases |
+| Nudgra OSS | Shared PostgreSQL 17 with `pgcrypto` | None observed | PostgreSQL `pg-boss` inside Nudgra's isolated database | None observed | None observed | Isolated database and role |
+| n8n | Shared PostgreSQL 17 | None | Shared Valkey queue; n8n worker and external runners | Fresh local n8n volume; external binary storage Pending | None observed | Isolated database and role |
+| Twenty | Shared PostgreSQL 17 | Shared Redis cache | PostgreSQL `pg-boss`; no Redis queue required by current recipe | Shared object storage when S3 mode is enabled | None observed | Isolated database and role |
+| Buzz | Shared PostgreSQL 17 with `pgcrypto` | Shared durable Redis | Redis pub/sub | Shared object storage with isolated `buzz-media` bucket | None observed | Isolated database and role |
+| SocialReply | Shared PostgreSQL 17 with pgvector | Shared durable Redis | Shared Redis; Horizon and Reverb remain application processes | Shared object storage with isolated `social-reply` bucket | pgvector only in its isolated database | Isolated database and role |
+| QM | Shared PostgreSQL 17 | None | Dedicated private Docker-in-Docker agent sandbox | Persistent QM and nested-Docker volumes | Claude subscription harness | The host Docker socket is never mounted |
 
 ## Database Engine Preservation Policy
 
@@ -273,8 +266,7 @@ Current engine groups:
 
 | Engine | Applications |
 | --- | --- |
-| PostgreSQL 16 target | Plane, Postiz, Nudgra OSS, n8n, Twenty, Buzz, plus Postiz's Temporal databases |
-| Dedicated PostgreSQL 17 plus pgvector | SocialReply |
+| PostgreSQL 17 plus pgvector | Plane, Postiz, Nudgra OSS, n8n, Twenty, Buzz, SocialReply, QM, plus Postiz's Temporal databases |
 | MySQL 8.4 LTS target | Lokei, Albert, Record Cloud, Insight/Clavinci, Kensi AI, AgentsHQ, Togglebox MySQL edition, OpenPay, OpenKudos/TeamToast |
 | No application database observed | Ploon and Open Growth Group website |
 
@@ -286,7 +278,7 @@ flowchart TB
     Coolify --> Apps[Independent application stacks]
 
     Shared --> MySQL[(Shared MySQL 8.4 LTS)]
-    Shared --> PostgreSQL[(Shared PostgreSQL 16)]
+    Shared --> PostgreSQL[(Shared PostgreSQL 17 plus pgvector)]
     Shared --> Cache[(Shared Valkey cache)]
     Shared --> Queue[(Shared Valkey queue)]
     Shared --> Storage[(Shared MinIO object storage)]

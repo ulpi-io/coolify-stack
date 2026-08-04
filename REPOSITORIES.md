@@ -30,6 +30,7 @@ Environment scope for every deployment unit: **production only**.
 | Twenty | Coolify Marketplace recipe using `twentycrm/twenty:v1.15` | `https://crm.con.fyi` | Coolify route |
 | Buzz | `block/buzz` relay image and desktop clients | `wss://buzz.con.fyi` | Planned Coolify route; DNS pending |
 | SocialReply | `ulpi-io/social-reply` | `https://socialreply.ai`, `https://api.socialreply.ai`, `wss://ws.socialreply.ai` | Planned Coolify routes; DNS must be verified before deployment |
+| QM | `ulpi-io/qm` | `https://agents.con.fyi` | Private-fork source build; DNS pending |
 
 Domains not listed in this table are still to be collected or verified from the live Coolify deployment.
 
@@ -108,3 +109,12 @@ Domains not listed in this table are still to be collected or verified from the 
     - Audited source ref: `09c0b41b363ee27071c0ad1e1a5e6d4b11d6cc2e`
     - Production routes: `https://socialreply.ai`, `https://api.socialreply.ai`, `wss://ws.socialreply.ai`
     - Backing services: isolated database/role on shared PostgreSQL 17 with pgvector; isolated shared Redis ACL user and MinIO bucket/service account; shared Mailpit SMTP
+23. https://github.com/ulpi-io/qm
+    - Application: QM
+    - Ownership: personal / first-party private fork
+    - Deployment class: exact-SHA source build with a dedicated private Docker-in-Docker sandbox daemon
+    - Audited source ref: `5eb3393315b45b338b860572ab516db9f6eae6da`
+    - Production route: `https://agents.con.fyi`
+    - Backing services: isolated database/role on shared PostgreSQL 17; persistent QM data and private nested-Docker volumes
+    - Model authentication: Claude harness using `CLAUDE_CODE_OAUTH_TOKEN`
+    - Accepted deployment risk: the pinned production dependency tree reports unresolved high-severity findings, including transitive `undici` findings without an available upstream fix; `npm audit` is not an image-build gate until the fork updates those dependencies

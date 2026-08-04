@@ -91,6 +91,7 @@ resource_specs=(
   'twenty|Twenty Stack'
   'buzz|Buzz Stack'
   'social-reply|SocialReply Stack'
+  'qm|QM Stack'
 )
 
 resource_name=""

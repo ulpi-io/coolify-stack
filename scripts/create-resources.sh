@@ -17,6 +17,8 @@ mode=""
 reset=0
 only_slug=""
 provided_env_file=""
+qm_claude_token_file=""
+qm_resend_key_file=""
 token_name=ogg-coolify-stack-bootstrap
 token_file=/tmp/ogg-coolify-stack-token
 legacy_token_name=codex-coolify-stack-bootstrap
@@ -38,6 +40,10 @@ Options:
   --reset             Delete and recreate the selected exact stack project(s).
   --only SLUG         Create one missing resource without touching other projects.
   --env-file FILE     Use a pre-generated mode-0600 env file with --only.
+  --qm-claude-token-file FILE
+                     Mode-0600 Claude setup-token file used when generating QM.
+  --qm-resend-key-file FILE
+                     Mode-0600 Resend API-key file used when generating QM.
   --ssh-key PATH      SSH private key used for the Coolify host.
   --host HOST         Coolify server SSH host (default: 68.183.135.86).
   --server-uuid UUID  Coolify destination server UUID.
@@ -64,6 +70,8 @@ while (($#)); do
     --reset) reset=1; shift ;;
     --only) [[ $# -ge 2 ]] || die "--only needs a slug"; only_slug=$2; shift 2 ;;
     --env-file) [[ $# -ge 2 ]] || die "--env-file needs a path"; provided_env_file=$2; shift 2 ;;
+    --qm-claude-token-file) [[ $# -ge 2 ]] || die "--qm-claude-token-file needs a path"; qm_claude_token_file=$2; shift 2 ;;
+    --qm-resend-key-file) [[ $# -ge 2 ]] || die "--qm-resend-key-file needs a path"; qm_resend_key_file=$2; shift 2 ;;
     --ssh-key) [[ $# -ge 2 ]] || die "--ssh-key needs a path"; ssh_key=$2; shift 2 ;;
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --server-uuid) [[ $# -ge 2 ]] || die "--server-uuid needs a value"; server_uuid=$2; shift 2 ;;
@@ -86,7 +94,7 @@ else
   [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--buzz-owner-pubkey must be a 64-character hex Nostr public key"
 fi
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
 
 # slug|project|compose path|resource|domains JSON|description
 stacks=(
@@ -109,6 +117,7 @@ stacks=(
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
   'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
   'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}]|Production SocialReply conversational-marketing platform.'
+  'qm|QM|/platforms/qm/compose.yaml|QM Stack|[{"name":"portal","domain":"https://agents.con.fyi"}]|Production QM agent workspace with a private local sandbox daemon.'
 )
 
 if [[ -n "$only_slug" ]]; then
@@ -125,6 +134,10 @@ if [[ -n "$provided_env_file" ]]; then
   provided_env_mode=$(stat -f '%Lp' "$provided_env_file" 2>/dev/null || stat -c '%a' "$provided_env_file")
   [[ "$provided_env_mode" == 600 ]] || die "--env-file must have mode 0600"
   grep -qx "PLATFORM_SLUG=$only_slug" "$provided_env_file" || die "--env-file does not belong to $only_slug"
+fi
+if [[ "$mode" == apply && ( -z "$only_slug" || "$only_slug" == qm ) && -z "$provided_env_file" ]]; then
+  [[ -n "$qm_claude_token_file" ]] || die "QM generation requires --qm-claude-token-file"
+  [[ -n "$qm_resend_key_file" ]] || die "QM generation requires --qm-resend-key-file"
 fi
 
 cleanup() {
@@ -162,6 +175,14 @@ done
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/ogg-coolify-stack.XXXXXX")
 chmod 700 "$work_dir"
 
+qm_validation_token_file="$work_dir/qm-validation-claude-token"
+qm_validation_resend_file="$work_dir/qm-validation-resend-key"
+printf '%s' 'validation-only-claude-token-00000000000000000000000000000000' > "$qm_validation_token_file"
+printf '%s' 'validation-only-resend-key-000000000000000000000000000000000' > "$qm_validation_resend_file"
+chmod 600 "$qm_validation_token_file" "$qm_validation_resend_file"
+[[ -n "$qm_claude_token_file" ]] || qm_claude_token_file=$qm_validation_token_file
+[[ -n "$qm_resend_key_file" ]] || qm_resend_key_file=$qm_validation_resend_file
+
 echo "Generating fresh environment values..."
 infrastructure/generate-env.sh --output-dir "$work_dir"
 for slug in "${platforms[@]}"; do
@@ -175,27 +196,32 @@ for slug in "${platforms[@]}"; do
   if [[ "$slug" == social-reply ]]; then
     generator_args+=(--operator-email "$operator_email")
   fi
+  if [[ "$slug" == qm ]]; then
+    generator_args+=(--admin-email "$operator_email" --claude-token-file "$qm_claude_token_file" --resend-key-file "$qm_resend_key_file")
+  fi
   "platforms/$slug/generate-env.sh" "${generator_args[@]}"
 done
 sed -i.bak "s/^OPERATOR_EMAIL_ALLOWLIST=.*/OPERATOR_EMAIL_ALLOWLIST=$operator_email/" "$work_dir/nudgra-oss.env"
 rm -f -- "$work_dir/nudgra-oss.env.bak"
 
-[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 19 ]] || die "expected 19 generated env files"
+[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 20 ]] || die "expected 20 generated env files"
 for env_file in "$work_dir"/*.env; do
   [[ $(stat -f '%Lp' "$env_file") == 600 ]] || die "$env_file is not mode 0600"
   ! grep -Eq '=required$|=.+ is required$|=replace-with-|example\.invalid' "$env_file" || die "$env_file still contains a placeholder"
 done
 
 if [[ "$mode" == check ]]; then
-  echo "CHECK PASSED: 19 environment files generated with no required placeholders; no remote changes made."
+  echo "CHECK PASSED: 20 environment files generated with no required placeholders; no remote changes made."
   exit 0
 fi
 
 [[ $reset -eq 1 || -n "$only_slug" ]] || die "--apply requires --reset unless --only selects one resource"
 [[ -n "$ssh_key" && -f "$ssh_key" ]] || die "--ssh-key must name an existing private key"
-command -v gh >/dev/null 2>&1 || die "gh is required to load the private-repository build token"
-git_auth_token=$(gh auth token 2>/dev/null) || die "gh auth token failed"
-[[ -n "$git_auth_token" ]] || die "GitHub token is empty"
+git_auth_token=${GIT_AUTH_TOKEN:-}
+if [[ -z "$git_auth_token" ]] && command -v gh >/dev/null 2>&1; then
+  git_auth_token=$(gh auth token 2>/dev/null || true)
+fi
+[[ -n "$git_auth_token" ]] || die "set GIT_AUTH_TOKEN or authenticate GitHub CLI to load private repositories"
 
 ssh_options=(-o BatchMode=yes -o ConnectTimeout=10 -o IdentitiesOnly=yes -i "$ssh_key")
 ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" true
@@ -307,10 +333,10 @@ for stack in "${stacks[@]}"; do
   application_uuid=$(jq -er .uuid <<<"$application_response") || die "Coolify returned no application UUID for $resource_name"
   [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID for $resource_name"
 
-  if [[ "$slug" == social-reply ]]; then
+  if [[ "$slug" == social-reply || "$slug" == qm ]]; then
     # Coolify 4.1.2's optional build-arg injector does not understand
-    # dockerfile_inline with remote Git contexts. SocialReply passes its public
-    # build args explicitly and supplies Git authentication as a BuildKit secret.
+    # dockerfile_inline with remote Git contexts. These recipes pass build args
+    # explicitly and supply Git authentication as a BuildKit secret.
     # shellcheck disable=SC2029
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify php artisan tinker --execute='\$application=App\\Models\\Application::where(\"uuid\",\"$application_uuid\")->firstOrFail(); \$application->settings->inject_build_args_to_dockerfile=false; \$application->settings->save();'" >/dev/null
@@ -394,5 +420,5 @@ done < "$manifest"
 if [[ -n "$only_slug" ]]; then
   echo "DONE: $only_slug project and configured Git Compose resource created without touching any other project; nothing was deployed."
 else
-  echo "DONE: 19 projects and 19 configured Git Compose resources created; nothing was deployed."
+  echo "DONE: 20 projects and 20 configured Git Compose resources created; nothing was deployed."
 fi

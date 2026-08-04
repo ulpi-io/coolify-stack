@@ -1,0 +1,358 @@
+name: qm
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-runtime-dockerfile: &runtime-dockerfile |
+  FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS web-build
+
+  WORKDIR /build
+
+  ARG WEB_UI_BASE=/
+  ENV WEB_UI_BASE=$$WEB_UI_BASE
+
+  COPY plugins/web-ui/package.json plugins/web-ui/package-lock.json ./
+  RUN npm ci
+  COPY plugins/web-ui/index.html plugins/web-ui/vite.config.ts plugins/web-ui/tsconfig.json ./
+  COPY plugins/web-ui/src ./src
+  COPY plugins/chassis/src /chassis/src
+  RUN npm run build
+
+  FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS runtime
+
+  RUN apk add --no-cache ca-certificates curl docker-cli docker-cli-buildx git git-daemon
+
+  WORKDIR /app
+
+  COPY package.json package-lock.json ./
+  RUN npm ci --omit=dev \
+    && rm -rf /root/.npm /tmp/node-compile-cache
+
+  COPY src ./src
+  COPY cli/templates/slack-manifest.json ./cli/templates/slack-manifest.json
+  COPY skills-seed ./skills-seed
+  COPY plugins/onboarding ./plugins/onboarding
+  COPY plugins/chassis ./plugins/chassis
+  COPY tsconfig.json ./
+
+  RUN node -e 'const fs=require("node:fs");const p="src/api/routes/surface.ts";const s=fs.readFileSync(p,"utf8");const from="...(managedKeys ? { modelProviderConfigured: Object.values(managedKeys).some(Boolean) } : {}),";const to="...(managedKeys ? { modelProviderConfigured: (process.env.HARNESS === \"claude\" && Boolean(process.env.CLAUDE_CODE_OAUTH_TOKEN)) || Object.values(managedKeys).some(Boolean) } : {}),";if(s.split(from).length!==2)throw new Error("QM OAuth compatibility target changed");fs.writeFileSync(p,s.replace(from,to));'
+
+  COPY plugins/web-ui/package.json plugins/web-ui/package-lock.json ./plugins/web-ui/
+  RUN cd plugins/web-ui && npm ci --omit=dev \
+    && rm -rf /root/.npm /tmp/node-compile-cache
+  COPY plugins/web-ui/server ./plugins/web-ui/server
+  COPY --from=web-build /build/dist-web ./plugins/web-ui/dist-web
+
+  COPY plugins/admin/src ./plugins/admin/src
+  COPY plugins/admin/public ./plugins/admin/public
+  COPY plugins/admin/tsconfig.json ./plugins/admin/tsconfig.json
+
+  COPY plugins/portal/package.json plugins/portal/package-lock.json ./plugins/portal/
+  RUN cd plugins/portal && npm ci --omit=dev \
+    && rm -rf /root/.npm /tmp/node-compile-cache
+  COPY plugins/portal/src ./plugins/portal/src
+  COPY plugins/portal/tsconfig.json ./plugins/portal/tsconfig.json
+
+  COPY plugins/auth/package.json plugins/auth/package-lock.json ./plugins/auth/
+  RUN cd plugins/auth && npm ci --omit=dev \
+    && rm -rf /root/.npm /tmp/node-compile-cache
+  COPY plugins/auth/src ./plugins/auth/src
+  COPY plugins/auth/tsconfig.json ./plugins/auth/tsconfig.json
+
+  COPY fly ./fly
+  COPY local ./local
+  COPY aws/microvm-agent ./aws/microvm-agent
+
+  ENV NODE_ENV=production
+  ENV DATA_DIR=/data
+  ARG GIT_SHA=
+  ENV GIT_SHA=$$GIT_SHA
+
+  RUN mkdir -p /data && chown node:node /data
+
+  USER node
+
+x-runtime-build: &runtime-build
+  context: https://github.com/ulpi-io/qm.git#${QM_SOURCE_REF:?required}
+  dockerfile_inline: *runtime-dockerfile
+  target: runtime
+  args:
+    GIT_SHA: ${QM_SOURCE_REF:?required}
+  secrets:
+    - source: git_auth_token
+      target: GIT_AUTH_TOKEN
+
+x-runtime-image: &runtime-image
+  image: qm-runtime-${COOLIFY_RESOURCE_UUID:-local}:${QM_SOURCE_REF:?required}
+
+x-runtime: &runtime
+  <<: [*service-defaults, *runtime-image]
+
+services:
+  sandbox-docker:
+    <<: *service-defaults
+    image: docker:29-dind@sha256:084e385b0c9b7ab35d5a46dfedd033721448c000dbec71adcf13da8a9e71baa8
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+      DOCKER_HOST: tcp://127.0.0.1:2375
+    command:
+      - dockerd
+      - --host=unix:///var/run/docker.sock
+      - --host=tcp://127.0.0.1:2375
+      - --storage-driver=overlay2
+      - --log-level=warn
+    volumes:
+      - qm-docker-data:/var/lib/docker
+    networks:
+      internal:
+        aliases: [core]
+      shared:
+    healthcheck:
+      test: ["CMD", "docker", "--host", "tcp://127.0.0.1:2375", "info"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2560M
+
+  sandbox-builder:
+    <<: *runtime
+    user: root
+    restart: "no"
+    network_mode: service:sandbox-docker
+    environment:
+      DOCKER_HOST: tcp://127.0.0.1:2375
+      QM_SOURCE_REF: ${QM_SOURCE_REF:?required}
+      LOCAL_SANDBOX_IMAGE: qm-sandbox-local:${QM_SOURCE_REF:?required}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        fingerprint="$$(node --input-type=module -e 'const { computeSandboxImageFingerprint } = await import("./src/sandbox/local-sandbox.ts"); const fp = await computeSandboxImageFingerprint(process.cwd()); if (!fp) process.exit(1); console.log(fp);')"
+        docker build --platform linux/amd64 -f fly/Dockerfile -t "qm-sandbox-base:$$QM_SOURCE_REF" .
+        docker build --platform linux/amd64 -f local/Dockerfile --build-arg "BASE=qm-sandbox-base:$$QM_SOURCE_REF" --label "qm.sandbox-fingerprint=$$fingerprint" -t "$$LOCAL_SANDBOX_IMAGE" .
+        docker image inspect "$$LOCAL_SANDBOX_IMAGE" >/dev/null
+    depends_on:
+      sandbox-docker:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  core:
+    <<: [*service-defaults, *runtime-image]
+    build: *runtime-build
+    network_mode: service:sandbox-docker
+    command: ["node", "src/index.ts"]
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      DATA_DIR: /data
+      ORG_ID: open-growth-group
+      ORG_BRAND_SELF_LABEL: Agents
+      SESSION_STORE: postgres
+      RUN_STORE: postgres
+      DATABASE_URL: postgresql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+      HARNESS: claude
+      CLAUDE_MODEL: claude-opus-5
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?required}
+      SANDBOX_BACKEND: local
+      LOCAL_SANDBOX_IMAGE: qm-sandbox-local:${QM_SOURCE_REF:?required}
+      LOCAL_SANDBOX_CPUS: "1"
+      LOCAL_SANDBOX_MEMORY_MB: "1024"
+      SANDBOX_TIMEOUT_SEC: "600"
+      DOCKER_HOST: tcp://127.0.0.1:2375
+      PUBLIC_API_URL: https://agents.con.fyi
+      PUBLIC_WEB_URL: https://agents.con.fyi
+      ADMIN_GRANTS: ${ADMIN_GRANTS:?required}
+      CORE_SIGNING_SECRET: ${CORE_SIGNING_SECRET:?required}
+      CAPABILITY_SECRET: ${CAPABILITY_SECRET:?required}
+      PORTAL_IDENTITY_SECRET: ${PORTAL_IDENTITY_SECRET:?required}
+      CONNECTOR_SECRET_KEY: ${CONNECTOR_SECRET_KEY:?required}
+      SKILL_SIGNING_SECRET: ${SKILL_SIGNING_SECRET:?required}
+      REQUIRE_SIGNED_PORTAL_IDENTITY: "1"
+      SECRETS_BACKEND: env
+      WORKERS: "4"
+    volumes:
+      - qm-data:/data
+    expose: ["8080"]
+    depends_on:
+      sandbox-builder:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 45s
+    stop_grace_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  web-ui:
+    <<: *runtime
+    command: ["node", "plugins/web-ui/server/index.ts"]
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      CORE_API_URL: http://core:8080
+      CORE_ORG_ID: open-growth-group
+      CORE_SIGNING_SECRET: ${CORE_SIGNING_SECRET:?required}
+      PORTAL_IDENTITY_SECRET: ${PORTAL_IDENTITY_SECRET:?required}
+      WEB_UI_PUBLIC_URL: https://agents.con.fyi
+    expose: ["8080"]
+    networks: [internal]
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  admin:
+    <<: *runtime
+    command: ["node", "plugins/admin/src/index.ts"]
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      CORE_API_URL: http://core:8080
+      CORE_ORG_ID: open-growth-group
+      CORE_SIGNING_SECRET: ${CORE_SIGNING_SECRET:?required}
+      PORTAL_IDENTITY_SECRET: ${PORTAL_IDENTITY_SECRET:?required}
+      ADMIN_BASE_PATH: /admin
+    expose: ["8080"]
+    networks: [internal]
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  auth:
+    <<: *runtime
+    command: ["node", "plugins/auth/src/index.ts"]
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      CORE_API_URL: http://core:8080
+      CORE_SIGNING_SECRET: ${CORE_SIGNING_SECRET:?required}
+      AUTH_ISSUER: https://agents.con.fyi/idp
+      AUTH_CLIENT_ID: qm-portal
+      AUTH_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?required}
+      AUTH_REDIRECT_URI: https://agents.con.fyi/auth/callback
+      AUTH_SIGNING_JWK: ${AUTH_SIGNING_JWK:?required}
+      AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:?required}
+      AUTH_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:?required}
+      AUTH_EMAIL_TRANSPORT: resend
+      AUTH_EMAIL_FROM: ${AUTH_EMAIL_FROM:?required}
+      AUTH_BRAND_NAME: Agents
+      RESEND_API_KEY: ${RESEND_API_KEY:?required}
+    expose: ["8080"]
+    networks: [internal]
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  portal:
+    <<: *runtime
+    labels:
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+    command: ["node", "plugins/portal/src/index.ts"]
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      CORE_API_URL: http://core:8080
+      CORE_ORG_ID: open-growth-group
+      CORE_SIGNING_SECRET: ${CORE_SIGNING_SECRET:?required}
+      PORTAL_IDENTITY_SECRET: ${PORTAL_IDENTITY_SECRET:?required}
+      PORTAL_PUBLIC_URL: https://agents.con.fyi
+      PORTAL_SESSION_SECRET: ${PORTAL_SESSION_SECRET:?required}
+      PORTAL_XFF_TRUSTED_HOPS: "1"
+      WEB_UI_UPSTREAM: http://web-ui:8080
+      ADMIN_UPSTREAM: http://admin:8080
+      AUTH_BROKER_UPSTREAM: http://auth:8080
+      AUTH_BROKER_PREFIX: /idp
+      OIDC_CLIENT_ID: qm-portal
+      OIDC_CLIENT_SECRET: ${AUTH_CLIENT_SECRET:?required}
+      OIDC_ISSUER: https://agents.con.fyi/idp
+      OIDC_AUTH_ENDPOINT: https://agents.con.fyi/idp/authorize
+      OIDC_TOKEN_ENDPOINT: http://auth:8080/token
+      OIDC_USERINFO_ENDPOINT: http://auth:8080/userinfo
+      OIDC_JWKS_URI: http://auth:8080/.well-known/jwks.json
+      OIDC_SCOPES: openid email
+      OIDC_PRINCIPAL_CLAIM: email
+      OIDC_ALLOWED_EMAILS: ${AUTH_ALLOWED_EMAILS:?required}
+    expose: ["8080"]
+    networks: [internal]
+    depends_on:
+      core:
+        condition: service_healthy
+      web-ui:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+      auth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+networks:
+  internal:
+  shared:
+    name: ${SHARED_NETWORK_NAME:?required}
+    external: true
+
+volumes:
+  qm-data:
+  qm-docker-data:
+
+secrets:
+  git_auth_token:
+    environment: GIT_AUTH_TOKEN

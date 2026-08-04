@@ -22,6 +22,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
 - Buzz relay (planned at `wss://buzz.con.fyi`; [recipe](platforms/buzz/); packaged desktop client connects over WSS)
 - [SocialReply](https://socialreply.ai) ([API](https://api.socialreply.ai), [realtime](https://ws.socialreply.ai), [recipe](platforms/social-reply/))
+- [QM Agents](https://agents.con.fyi) ([recipe](platforms/qm/))
 
 ## Production DNS A records
 
@@ -55,6 +56,7 @@ Every record below points to the production server at `68.183.135.86`. These are
 | `con.fyi` | `ig` | `A` | `68.183.135.86` |
 | `con.fyi` | `workflow` | `A` | `68.183.135.86` |
 | `con.fyi` | `crm` | `A` | `68.183.135.86` |
+| `con.fyi` | `agents` | `A` | `68.183.135.86` |
 
 The Buzz recipe configures `buzz.con.fyi`, but that DNS record is not present
 yet. Add `con.fyi` / `buzz` / `A` / `68.183.135.86` before deployment; this
@@ -65,17 +67,20 @@ The SocialReply recipe configures `socialreply.ai`, `api.socialreply.ai`, and
 create an `A` record for each hostname pointing to `68.183.135.86`; this
 repository does not create those records.
 
+The QM recipe configures `agents.con.fyi`. Add `con.fyi` / `agents` / `A` /
+`68.183.135.86` before public use; this repository does not create that record.
+
 ## Layout
 
 - `infrastructure/compose.yaml` contains the reusable backing services.
-- `infrastructure/generate-env.sh` creates the infrastructure env plus 18 isolated platform fragments.
+- `infrastructure/generate-env.sh` creates the infrastructure env plus 19 isolated platform fragments.
 - `platforms/<slug>/compose.yaml` contains one logical application stack.
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
 - `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
 - `scripts/update-app-env.sh` safely adds or updates selected environment keys for one existing Coolify application.
 
-There are exactly 19 Compose files and 19 env generators: one pair for infrastructure and one pair for each of the 18 platforms in `REPOSITORIES.md`.
+There are exactly 20 Compose files and 20 env generators: one pair for infrastructure and one pair for each of the 19 platforms in `REPOSITORIES.md`.
 
 ## Shared infrastructure
 
@@ -112,7 +117,7 @@ Generators create mode-`0600` files, do not print secret values, and refuse over
 scripts/validate-all.sh
 ```
 
-The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 19 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces the shared PostgreSQL 17 plus pgvector contract used by SocialReply and the existing PostgreSQL consumers. It never runs `docker compose up`.
+The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 20 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces the shared PostgreSQL 17 plus pgvector contract used by SocialReply, QM, and the existing PostgreSQL consumers. It never runs `docker compose up`.
 
 ## Create the Coolify resources
 
@@ -129,6 +134,8 @@ scripts/create-resources.sh \
   --apply \
   --reset \
   --buzz-owner-pubkey "$BUZZ_OWNER_PUBKEY" \
+  --qm-claude-token-file /secure/path/claude-setup-token \
+  --qm-resend-key-file /secure/path/resend-api-key \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
@@ -155,6 +162,10 @@ docker run --rm --entrypoint /usr/local/bin/buzz-admin \
 ```
 
 The command generates all secrets in a mode-`0600` temporary directory, opens the localhost-only API for the run, and ensures the external `ogg-shared` Docker network exists. Full `--reset` mode deletes only this repository's exact project names and recreates the stack sequentially; `--only` requires its target project to be absent unless `--reset` is also supplied. For each selected resource it waits for Coolify's Compose parser to finish, applies service domains, removes all parser-generated placeholder/default rows, and uploads exactly one generated row per key. It rejects any duplicate key, surviving `required` placeholder, or mismatch from the generated env file before moving to the next project; Coolify-managed `SERVICE_*` routing variables are permitted in addition to the generated keys. It verifies that nothing is running, disables the API, revokes its temporary token, and removes the temporary files. This ordering avoids both Coolify 4.1.2's create-with-domains failure and its asynchronous environment-extraction behavior.
+
+Private source builds use `GIT_AUTH_TOKEN` when it is exported; otherwise the
+resource creator falls back to the active GitHub CLI token. The credential is
+loaded as a BuildKit secret and is not copied into application images.
 
 ## Update one application's environment
 
@@ -224,5 +235,20 @@ localhost-only, waits for all SocialReply services and migrations, exercises
 the three internal HTTPS routes, and fails if any non-SocialReply running
 container changes during the deployment. Shared infrastructure is never part
 of this workflow.
+
+QM builds the core, portal, web UI, admin, and auth services from the immutable
+private `ulpi-io/qm` commit recorded in `platforms/qm/generate-env.sh`. It uses
+an isolated database and role on shared PostgreSQL 17. Agent computers run in
+a dedicated privileged Docker-in-Docker daemon whose TCP endpoint is bound only
+to its own loopback namespace; the production host Docker socket is never
+mounted. Claude runs through `CLAUDE_CODE_OAUTH_TOKEN`, and Resend handles the
+built-in broker's one-time sign-in email.
+
+The pinned QM dependency tree currently reports unresolved high-severity
+production findings, including transitive `undici` findings with no upstream fix. The
+production image installs the immutable lockfile but does not run `npm audit`
+as a build gate; this exception was explicitly accepted for this deployment.
+Re-evaluate and remove the exception when the private fork updates its
+dependencies.
 
 See `COOLIFY_IMPORT.md` for the manual import order and service/domain map.

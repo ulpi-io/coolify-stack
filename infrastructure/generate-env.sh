@@ -37,7 +37,7 @@ command -v openssl >/dev/null 2>&1 || { echo "openssl is required" >&2; exit 1; 
 
 infra_env="$output_dir/infrastructure.env"
 fragments_dir="$output_dir/platforms"
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
 
 if [[ $force -ne 1 ]]; then
   [[ ! -e "$infra_env" ]] || { echo "Refusing to overwrite $infra_env; pass --force" >&2; exit 1; }
@@ -56,7 +56,7 @@ secret_vars=(
   MYSQL_ROOT_PASSWORD POSTGRES_ROOT_PASSWORD
   KENSI_AI_DB_PASSWORD AGENTSHQ_DB_PASSWORD OPEN_KUDOS_DB_PASSWORD INSIGHT_DB_PASSWORD
   TOGGLEBOX_DB_PASSWORD OPENPAY_DB_PASSWORD LOKEI_DB_PASSWORD ALBERT_DB_PASSWORD RECORD_CLOUD_DB_PASSWORD
-  PLANE_DB_PASSWORD POSTIZ_DB_PASSWORD NUDGRA_DB_PASSWORD N8N_DB_PASSWORD TWENTY_DB_PASSWORD BUZZ_DB_PASSWORD SOCIAL_REPLY_DB_PASSWORD TEMPORAL_DB_PASSWORD
+  PLANE_DB_PASSWORD POSTIZ_DB_PASSWORD NUDGRA_DB_PASSWORD N8N_DB_PASSWORD TWENTY_DB_PASSWORD BUZZ_DB_PASSWORD SOCIAL_REPLY_DB_PASSWORD QM_DB_PASSWORD TEMPORAL_DB_PASSWORD
   VALKEY_ADMIN_PASSWORD PLANE_VALKEY_PASSWORD REDIS_CACHE_ADMIN_PASSWORD REDIS_QUEUE_ADMIN_PASSWORD
   LOKEI_CACHE_PASSWORD ALBERT_CACHE_PASSWORD KENSI_AI_CACHE_PASSWORD OPEN_KUDOS_CACHE_PASSWORD
   POSTIZ_CACHE_PASSWORD TWENTY_CACHE_PASSWORD OPENPAY_CACHE_PASSWORD
@@ -99,6 +99,7 @@ N8N_DB_PASSWORD=$N8N_DB_PASSWORD
 TWENTY_DB_PASSWORD=$TWENTY_DB_PASSWORD
 BUZZ_DB_PASSWORD=$BUZZ_DB_PASSWORD
 SOCIAL_REPLY_DB_PASSWORD=$SOCIAL_REPLY_DB_PASSWORD
+QM_DB_PASSWORD=$QM_DB_PASSWORD
 TEMPORAL_DB_PASSWORD=$TEMPORAL_DB_PASSWORD
 VALKEY_ADMIN_PASSWORD=$VALKEY_ADMIN_PASSWORD
 PLANE_VALKEY_PASSWORD=$PLANE_VALKEY_PASSWORD
@@ -242,7 +243,8 @@ postgres_fragment buzz buzz buzz "$BUZZ_DB_PASSWORD" \
 postgres_fragment social-reply socialreply socialreply "$SOCIAL_REPLY_DB_PASSWORD" \
   $(queue_lines social-reply "$SOCIAL_REPLY_QUEUE_PASSWORD") \
   "S3_ENDPOINT=http://minio:9000" "S3_REGION=us-east-1" "S3_BUCKET=social-reply" "S3_ACCESS_KEY=$SOCIAL_REPLY_S3_ACCESS_KEY" "S3_SECRET_KEY=$SOCIAL_REPLY_S3_SECRET_KEY" "S3_PATH_STYLE=true" "${mail_lines[@]}"
+postgres_fragment qm qm qm "$QM_DB_PASSWORD"
 
 count=$(find "$fragments_dir" -maxdepth 1 -type f -name '*.shared.env' | wc -l | tr -d ' ')
-[[ "$count" = "18" ]] || { echo "Internal error: expected 18 shared fragments, found $count" >&2; exit 1; }
-echo "Generated infrastructure.env and 18 platform fragments in $output_dir (secrets not displayed)."
+[[ "$count" = "19" ]] || { echo "Internal error: expected 19 shared fragments, found $count" >&2; exit 1; }
+echo "Generated infrastructure.env and 19 platform fragments in $output_dir (secrets not displayed)."
