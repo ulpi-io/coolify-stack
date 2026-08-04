@@ -132,6 +132,10 @@ grep -Fq 'BUZZ_REQUIRE_RELAY_MEMBERSHIP: "true"' platforms/buzz/compose.yaml || 
   echo "Buzz must use closed relay membership by default" >&2
   exit 1
 }
+grep -Fq 'BUZZ_CORS_ORIGINS=https://buzz.con.fyi,tauri://localhost,http://tauri.localhost' platforms/buzz/generate-env.sh || {
+  echo "Buzz must allow its web and packaged desktop origins" >&2
+  exit 1
+}
 grep -Fq 'BUZZ_S3_ADDRESSING_STYLE: path' platforms/buzz/compose.yaml || {
   echo "Buzz must use path-style addressing with shared MinIO" >&2
   exit 1
