@@ -2,5 +2,5 @@
 # chmod it to 0600 before using scripts/update-app-env.sh.
 GOOGLE_CLIENT_ID=replace-with-google-client-id
 GOOGLE_CLIENT_SECRET=replace-with-google-client-secret
-META_APP_ID=replace-with-meta-app-id
-META_APP_SECRET=replace-with-meta-app-secret
+FACEBOOK_APP_ID=replace-with-facebook-app-id
+FACEBOOK_APP_SECRET=replace-with-facebook-app-secret

@@ -205,6 +205,18 @@ prints the exact single-app deployment command instead. Empty values are
 rejected unless `--allow-empty` is supplied intentionally. The localhost-only
 Coolify API is disabled and the temporary API token is revoked on exit.
 
+Postiz's standard Facebook and Instagram providers use `FACEBOOK_APP_ID` and
+`FACEBOOK_APP_SECRET`. Configure both through the scoped updater above. The
+same Meta app must allow these OAuth redirect URIs:
+
+```text
+https://post.con.fyi/integrations/social/facebook
+https://post.con.fyi/integrations/social/instagram
+```
+
+These are OAuth callbacks, not Meta webhook endpoints; the deployed Postiz
+provider does not implement Meta's webhook verify-token challenge.
+
 ## Build sources
 
 Existing published images are used for Plane, Postiz, n8n, Twenty, Buzz, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.

@@ -19,6 +19,8 @@ services:
       FRONTEND_URL: ${APP_URL:?required}
       NEXT_PUBLIC_BACKEND_URL: ${APP_URL:?required}/api
       JWT_SECRET: ${JWT_SECRET:?required}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
       DATABASE_URL: postgresql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
       REDIS_URL: redis://${QUEUE_USERNAME:?required}:${QUEUE_PASSWORD:?required}@${QUEUE_HOST:?required}:${QUEUE_PORT:?required}/2
       TEMPORAL_ADDRESS: ${TEMPORAL_ADDRESS:?required}
