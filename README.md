@@ -241,8 +241,10 @@ private `ulpi-io/qm` commit recorded in `platforms/qm/generate-env.sh`. It uses
 an isolated database and role on shared PostgreSQL 17. Agent computers run in
 a dedicated privileged Docker-in-Docker daemon whose TCP endpoint is bound only
 to its own loopback namespace; the production host Docker socket is never
-mounted. Claude runs through `CLAUDE_CODE_OAUTH_TOKEN`, and Resend handles the
-built-in broker's one-time sign-in email.
+mounted. A pinned TCP proxy is the only QM service attached to the shared
+network and bridges database traffic from QM's private network to PostgreSQL.
+Claude runs through `CLAUDE_CODE_OAUTH_TOKEN`, and Resend handles the built-in
+broker's one-time sign-in email.
 
 The pinned QM dependency tree currently reports unresolved high-severity
 production findings, including transitive `undici` findings with no upstream fix. The

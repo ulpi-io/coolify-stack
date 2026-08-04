@@ -244,6 +244,20 @@ grep -Fq 'privileged: true' platforms/qm/compose.yaml || {
   echo "QM local sandboxes require the explicitly approved privileged DinD service" >&2
   exit 1
 }
+grep -Fq 'image: haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047' platforms/qm/compose.yaml || {
+  echo "QM must pin its PostgreSQL network proxy image" >&2
+  exit 1
+}
+grep -Fq 'networks: [internal, shared]' platforms/qm/compose.yaml || {
+  echo "QM's PostgreSQL proxy must bridge only its internal and shared networks" >&2
+  exit 1
+}
+# Match the literal Compose-time interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq '@postgres-proxy:${DB_PORT:?required}' platforms/qm/compose.yaml || {
+  echo "QM core must reach shared PostgreSQL only through its internal proxy" >&2
+  exit 1
+}
 grep -Fq -- '--host=tcp://127.0.0.1:2375' platforms/qm/compose.yaml || {
   echo "QM's private Docker daemon must listen only on loopback" >&2
   exit 1
@@ -258,6 +272,10 @@ fi
 }
 if sed -n '/^  core:/,/^  web-ui:/p' platforms/qm/compose.yaml | grep -Eq '^    (expose|ports):'; then
   echo "QM core must not publish or expose ports while sharing the DinD network namespace" >&2
+  exit 1
+fi
+if sed -n '/^  sandbox-docker:/,/^  sandbox-builder:/p' platforms/qm/compose.yaml | grep -Eq '^      shared:'; then
+  echo "QM's privileged DinD service must not attach directly to the shared network" >&2
   exit 1
 fi
 grep -Fq 'HARNESS: claude' platforms/qm/compose.yaml || {

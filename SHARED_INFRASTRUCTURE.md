@@ -249,7 +249,7 @@ Statuses:
 | Twenty | Shared PostgreSQL 17 | Shared Redis cache | PostgreSQL `pg-boss`; no Redis queue required by current recipe | Shared object storage when S3 mode is enabled | None observed | Isolated database and role |
 | Buzz | Shared PostgreSQL 17 with `pgcrypto` | Shared durable Redis | Redis pub/sub | Shared object storage with isolated `buzz-media` bucket | None observed | Isolated database and role |
 | SocialReply | Shared PostgreSQL 17 with pgvector | Shared durable Redis | Shared Redis; Horizon and Reverb remain application processes | Shared object storage with isolated `social-reply` bucket | pgvector only in its isolated database | Isolated database and role |
-| QM | Shared PostgreSQL 17 | None | Dedicated private Docker-in-Docker agent sandbox | Persistent QM and nested-Docker volumes | Claude subscription harness | The host Docker socket is never mounted |
+| QM | Shared PostgreSQL 17 through a pinned TCP proxy | None | Dedicated private Docker-in-Docker agent sandbox | Persistent QM and nested-Docker volumes | Claude subscription harness | Only the proxy joins the shared network; the privileged DinD service never mounts the host Docker socket |
 
 ## Database Engine Preservation Policy
 

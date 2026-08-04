@@ -94,6 +94,44 @@ x-runtime: &runtime
   <<: [*service-defaults, *runtime-image]
 
 services:
+  postgres-proxy:
+    <<: *service-defaults
+    image: haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047
+    environment:
+      UPSTREAM_HOST: ${DB_HOST:?required}
+      UPSTREAM_PORT: ${DB_PORT:?required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        {
+          printf '%s\n' \
+            'global' \
+            '  maxconn 256' \
+            'defaults' \
+            '  mode tcp' \
+            '  timeout connect 5s' \
+            '  timeout client 1h' \
+            '  timeout server 1h' \
+            'frontend postgres' \
+            '  bind :5432' \
+            '  default_backend shared_postgres' \
+            'backend shared_postgres'
+          printf '  server postgres %s:%s check inter 5s fall 3 rise 2\n' "$$UPSTREAM_HOST" "$$UPSTREAM_PORT"
+        } > /tmp/haproxy.cfg
+        exec haproxy -W -db -f /tmp/haproxy.cfg
+    expose: ["5432"]
+    networks: [internal, shared]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z $$UPSTREAM_HOST $$UPSTREAM_PORT"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
   sandbox-docker:
     <<: *service-defaults
     image: docker:29-dind@sha256:084e385b0c9b7ab35d5a46dfedd033721448c000dbec71adcf13da8a9e71baa8
@@ -112,7 +150,6 @@ services:
     networks:
       internal:
         aliases: [core]
-      shared:
     healthcheck:
       test: ["CMD", "docker", "--host", "tcp://127.0.0.1:2375", "info"]
       interval: 10s
@@ -163,7 +200,7 @@ services:
       ORG_BRAND_SELF_LABEL: Agents
       SESSION_STORE: postgres
       RUN_STORE: postgres
-      DATABASE_URL: postgresql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@${DB_HOST:?required}:${DB_PORT:?required}/${DB_DATABASE:?required}
+      DATABASE_URL: postgresql://${DB_USERNAME:?required}:${DB_PASSWORD:?required}@postgres-proxy:${DB_PORT:?required}/${DB_DATABASE:?required}
       HARNESS: claude
       CLAUDE_MODEL: claude-opus-5
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:?required}
@@ -189,6 +226,8 @@ services:
     depends_on:
       sandbox-builder:
         condition: service_completed_successfully
+      postgres-proxy:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '\"ok\"'"]
       interval: 15s
