@@ -237,6 +237,16 @@ with this exact authorized redirect URI:
 https://post.con.fyi/integrations/social/youtube
 ```
 
+Postiz's TikTok provider uses `TIKTOK_CLIENT_ID` and `TIKTOK_CLIENT_SECRET`.
+Configure TikTok Login Kit with this exact redirect URI:
+
+```text
+https://post.con.fyi/integrations/social/tiktok
+```
+
+TikTok `pull_by_url` media transfer also requires domain verification for
+`post.con.fyi`, which covers Postiz media URLs under `/uploads/`.
+
 ## Build sources
 
 Existing published images are used for Plane, Postiz, n8n, Twenty, Buzz, and shared infrastructure. The other platform Compose files build directly from their GitHub repositories when Coolify deploys them. Private Git contexts use the BuildKit `GIT_AUTH_TOKEN` secret; the credential is used to fetch source and is not copied into an image layer.

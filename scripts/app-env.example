@@ -8,3 +8,5 @@ INSTAGRAM_APP_ID=replace-with-instagram-app-id
 INSTAGRAM_APP_SECRET=replace-with-instagram-app-secret
 YOUTUBE_CLIENT_ID=replace-with-youtube-client-id
 YOUTUBE_CLIENT_SECRET=replace-with-youtube-client-secret
+TIKTOK_CLIENT_ID=replace-with-tiktok-client-id
+TIKTOK_CLIENT_SECRET=replace-with-tiktok-client-secret
