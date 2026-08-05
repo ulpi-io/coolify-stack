@@ -80,6 +80,16 @@ grep -Fq 'traefik.http.middlewares.socialreply-force-https.redirectscheme.perman
   echo "SocialReply HTTP routes must permanently redirect to HTTPS" >&2
   exit 1
 }
+for socialreply_router in apex www api ws; do
+  grep -Fq "traefik.http.routers.socialreply-${socialreply_router}-http.priority: \"10000\"" platforms/social-reply/compose.yaml || {
+    echo "SocialReply ${socialreply_router} HTTP redirect router must outrank Coolify's generated router" >&2
+    exit 1
+  }
+done
+[[ $(grep -Fc 'priority: "10000"' platforms/social-reply/compose.yaml) == 4 ]] || {
+  echo "SocialReply HTTP redirect routers must outrank Coolify's generated routers" >&2
+  exit 1
+}
 # Match the literal shell condition in the resource creator.
 # shellcheck disable=SC2016
 grep -Fq '[[ "$slug" == con-fyi || "$slug" == social-reply ]] && force_https_enabled=false' scripts/create-resources.sh || {
