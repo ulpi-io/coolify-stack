@@ -16,6 +16,7 @@ log_file="$test_dir/docker.log"
 mkdir -p "$configuration_dir" "$source_dir"
 touch "$configuration_dir/docker-compose.yaml" "$configuration_dir/.env"
 touch "$source_dir/compose.yaml"
+touch "$source_dir/.service-env"
 printf 'before\n' > "$state_file"
 
 cat > "$fake_docker" <<'EOF'
@@ -58,7 +59,7 @@ FAKE_DOCKER_LOG_FILE="$log_file" \
     "$application_uuid" "$service_name" 60 0 >/dev/null
 
 grep -Fq 'up -d --no-deps --force-recreate --no-build nginx' "$log_file"
-grep -Fq -- "--project-directory $source_dir -f $configuration_dir/docker-compose.yaml -f $source_dir/compose.yaml config --services" "$log_file"
+grep -Fq -- "--env-file $configuration_dir/.env --env-file $source_dir/.service-env --project-name $application_uuid --project-directory $source_dir -f $configuration_dir/docker-compose.yaml -f $source_dir/compose.yaml config --services" "$log_file"
 [[ -L "$source_dir/.env" ]]
 [[ $(readlink "$source_dir/.env") == "$configuration_dir/.env" ]]
 grep -qx after "$state_file"

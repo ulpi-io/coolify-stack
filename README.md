@@ -189,6 +189,11 @@ scripts/deploy-resources.sh \
   --ssh-key /absolute/path/to/the/server/ssh/key
 ```
 
+When saved Coolify environment changes must apply without a full resource
+deployment, pass a mode-`0600` file with only those keys via `--env-file`. The
+overlay is streamed to the operation's temporary server directory and removed
+with it.
+
 Add `--build` only when that selected service's image must be rebuilt. Build
 mode refuses to run with less than 2 GiB available memory or 4 GiB free Docker
 disk. Service mode layers the resource's current repository `compose.yaml` over

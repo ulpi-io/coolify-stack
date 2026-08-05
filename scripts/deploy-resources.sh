@@ -8,6 +8,7 @@ ssh_key=${COOLIFY_SSH_KEY:-}
 timeout_seconds=${DEPLOY_TIMEOUT_SECONDS:-5400}
 only_slug=""
 service_name=""
+service_env_file=""
 build_service=0
 token_name=ogg-coolify-stack-deploy
 token_file=/tmp/ogg-coolify-stack-deploy-token
@@ -21,7 +22,7 @@ usage() {
 Usage:
   scripts/deploy-resources.sh --apply --ssh-key PATH
   scripts/deploy-resources.sh --apply --only SLUG --ssh-key PATH
-  scripts/deploy-resources.sh --apply --only SLUG --service SERVICE [--build] --ssh-key PATH
+  scripts/deploy-resources.sh --apply --only SLUG --service SERVICE [--env-file PATH] [--build] --ssh-key PATH
 
 Deploys the existing Coolify resources in dependency order. It does not create,
 delete, or reconfigure resources, environments, domains, networks, or volumes.
@@ -35,6 +36,7 @@ Options:
   --timeout SECONDS Per-resource deployment timeout (default: 5400).
   --only SLUG       Deploy only one resource (for example: infrastructure or kensi-ai).
   --service SERVICE Recreate one existing Compose service; requires --only.
+  --env-file PATH   Add a mode-0600 temporary env overlay; requires --service.
   --build           Build only the selected service before recreating it; requires --service.
 EOF
 }
@@ -53,6 +55,7 @@ while (($#)); do
     --timeout) [[ $# -ge 2 ]] || die "--timeout needs seconds"; timeout_seconds=$2; shift 2 ;;
     --only) [[ $# -ge 2 ]] || die "--only needs a slug"; only_slug=$2; shift 2 ;;
     --service) [[ $# -ge 2 ]] || die "--service needs a Compose service name"; service_name=$2; shift 2 ;;
+    --env-file) [[ $# -ge 2 ]] || die "--env-file needs a path"; service_env_file=$2; shift 2 ;;
     --build) build_service=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown argument: $1" ;;
@@ -65,6 +68,12 @@ done
 [[ -z "$service_name" || -n "$only_slug" ]] || die "--service requires --only"
 [[ -z "$service_name" || "$service_name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "invalid Compose service name"
 [[ $build_service -eq 0 || -n "$service_name" ]] || die "--build requires --service"
+[[ -z "$service_env_file" || -n "$service_name" ]] || die "--env-file requires --service"
+if [[ -n "$service_env_file" ]]; then
+  [[ -f "$service_env_file" && ! -L "$service_env_file" ]] || die "--env-file must be a regular, non-symlink file"
+  service_env_mode=$(stat -f '%Lp' "$service_env_file" 2>/dev/null || stat -c '%a' "$service_env_file")
+  [[ "$service_env_mode" == 600 ]] || die "--env-file must have mode 0600"
+fi
 for command_name in base64 jq tar; do
   command -v "$command_name" >/dev/null 2>&1 || die "$command_name is required"
 done
@@ -185,6 +194,13 @@ if [[ -n "$service_name" ]]; then
   # shellcheck disable=SC2029
   COPYFILE_DISABLE=1 tar -C "$source_dir" -cf - . | ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
     "tar -xf - -C '$remote_service_dir'"
+  if [[ -n "$service_env_file" ]]; then
+    # Values are streamed through stdin and exist only in the validated remote
+    # temporary directory used for this service operation.
+    # shellcheck disable=SC2029
+    ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+      "umask 077; cat > '$remote_service_dir/.service-env'" < "$service_env_file"
+  fi
 
   echo "Redeploying only $only_slug/$service_name..."
   # All interpolated arguments are constrained to alphanumeric service/UUID
