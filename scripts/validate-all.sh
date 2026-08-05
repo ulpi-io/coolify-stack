@@ -80,14 +80,10 @@ grep -Fq 'NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL=hello@opengrowthgroup.co' platforms/
   echo "SocialReply web must receive its privacy contact at build time and runtime" >&2
   exit 1
 }
-# Match the literal nginx request URI variable.
+# Match the literal Compose escape that becomes nginx's request URI variable.
 # shellcheck disable=SC2016
-grep -Fq 'return 301 https://www.socialreply.ai$request_uri;' platforms/social-reply/apex-redirect.conf || {
-  echo "SocialReply apex must permanently redirect to the canonical www host" >&2
-  exit 1
-}
-grep -Fq 'file: ./platforms/social-reply/apex-redirect.conf' platforms/social-reply/compose.yaml || {
-  echo "SocialReply apex redirect config must resolve from Coolify's repository project directory" >&2
+grep -Fq 'return 301 https://www.socialreply.ai$$request_uri;' platforms/social-reply/compose.yaml || {
+  echo "SocialReply apex must inline its canonical www redirect for Coolify artifacts" >&2
   exit 1
 }
 grep -Fq 'traefik.http.middlewares.socialreply-force-https.redirectscheme.permanent: "true"' platforms/social-reply/compose.yaml || {
