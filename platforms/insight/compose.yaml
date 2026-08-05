@@ -41,7 +41,7 @@ services:
     configs:
       - source: apex_redirect
         target: /etc/nginx/conf.d/default.conf
-    networks: [internal]
+    networks: [default, internal]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q '^ok$'"]
       interval: 15s
