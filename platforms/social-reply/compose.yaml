@@ -253,6 +253,7 @@ x-api-environment: &api-environment
   APP_DEBUG: "false"
   APP_URL: ${APP_URL:?required}
   APP_FRONTEND_URL: ${APP_FRONTEND_URL:?required}
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:?required}
   OPS_ADMIN_EMAILS: ${OPS_ADMIN_EMAILS:?required}
   LOG_CHANNEL: stderr
   LOG_LEVEL: info

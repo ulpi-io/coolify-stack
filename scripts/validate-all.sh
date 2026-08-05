@@ -345,6 +345,16 @@ grep -Eq '^SOCIAL_REPLY_SOURCE_REF=[0-9a-f]{40}$' platforms/social-reply/generat
   echo "SocialReply must pin one immutable source commit SHA" >&2
   exit 1
 }
+grep -Fq 'TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply trusted proxies must default to the private RFC 1918 ranges" >&2
+  exit 1
+}
+# Match the literal Compose-time required environment expression.
+# shellcheck disable=SC2016
+grep -Fq 'TRUSTED_PROXIES: ${TRUSTED_PROXIES:?required}' platforms/social-reply/compose.yaml || {
+  echo "SocialReply API services must receive TRUSTED_PROXIES from the environment" >&2
+  exit 1
+}
 grep -Fq 'docker-php-ext-install -j2' platforms/social-reply/compose.yaml || {
   echo "SocialReply must bound PHP extension compilation on the shared production host" >&2
   exit 1
