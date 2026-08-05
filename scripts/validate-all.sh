@@ -421,12 +421,18 @@ generator_count=$(find infrastructure platforms -type f -name generate-env.sh | 
 [[ "$compose_count" = 21 ]] || { echo "Expected 21 Compose files, found $compose_count" >&2; exit 1; }
 [[ "$generator_count" = 21 ]] || { echo "Expected 21 env generators, found $generator_count" >&2; exit 1; }
 
-bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
+bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh \
+  scripts/server/redeploy-compose-service \
+  scripts/tests/redeploy-compose-service.test.sh
 if command -v shellcheck >/dev/null 2>&1; then
-  shellcheck infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
+  shellcheck infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh \
+    scripts/server/redeploy-compose-service \
+    scripts/tests/redeploy-compose-service.test.sh
 else
   echo "WARNING: shellcheck is not installed; skipped shell lint" >&2
 fi
+
+scripts/tests/redeploy-compose-service.test.sh >/dev/null
 
 validation_dir=$(mktemp -d)
 cleanup() { rm -rf "$validation_dir"; }

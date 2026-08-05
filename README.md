@@ -176,6 +176,29 @@ Private source builds use `GIT_AUTH_TOKEN` when it is exported; otherwise the
 resource creator falls back to the active GitHub CLI token. The credential is
 loaded as a BuildKit secret and is not copied into application images.
 
+## Redeploy one Compose service
+
+Recreate exactly one existing container without deploying the other services
+in its Coolify application:
+
+```bash
+scripts/deploy-resources.sh \
+  --apply \
+  --only social-reply \
+  --service nginx \
+  --ssh-key /absolute/path/to/the/server/ssh/key
+```
+
+Add `--build` only when that selected service's image must be rebuilt. Build
+mode refuses to run with less than 2 GiB available memory or 4 GiB free Docker
+disk. Service mode uses Coolify's persisted Compose configuration, targets one
+service, passes `--no-deps`, refuses to run during an active Coolify deployment,
+and verifies that every non-target container ID is unchanged. Without `--build`
+it passes `--no-build`, so a missing image fails safely instead of triggering an
+implicit build. A missing service container may be created; multiple existing
+containers for the selected service are rejected as ambiguous. It never falls
+back to a full application deployment.
+
 ## Update one application's environment
 
 Copy the example outside the repository, keep it private, and add only the

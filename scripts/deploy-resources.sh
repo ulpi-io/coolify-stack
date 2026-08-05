@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
 coolify_host=${COOLIFY_HOST:-68.183.135.86}
 coolify_user=${COOLIFY_USER:-root}
 ssh_key=${COOLIFY_SSH_KEY:-}
 timeout_seconds=${DEPLOY_TIMEOUT_SECONDS:-5400}
 only_slug=""
+service_name=""
+build_service=0
 token_name=ogg-coolify-stack-deploy
 token_file=/tmp/ogg-coolify-stack-deploy-token
 api_managed=0
@@ -17,9 +20,12 @@ usage() {
 Usage:
   scripts/deploy-resources.sh --apply --ssh-key PATH
   scripts/deploy-resources.sh --apply --only SLUG --ssh-key PATH
+  scripts/deploy-resources.sh --apply --only SLUG --service SERVICE [--build] --ssh-key PATH
 
 Deploys the existing Coolify resources in dependency order. It does not create,
 delete, or reconfigure resources, environments, domains, networks, or volumes.
+With --service, it recreates exactly one existing Compose service from Coolify's
+persisted configuration and proves non-target containers were not recreated.
 
 Options:
   --apply           Deploy the existing resources.
@@ -27,6 +33,8 @@ Options:
   --host HOST       Coolify server SSH host (default: 68.183.135.86).
   --timeout SECONDS Per-resource deployment timeout (default: 5400).
   --only SLUG       Deploy only one resource (for example: infrastructure or kensi-ai).
+  --service SERVICE Recreate one existing Compose service; requires --only.
+  --build           Build only the selected service before recreating it; requires --service.
 EOF
 }
 
@@ -43,6 +51,8 @@ while (($#)); do
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --timeout) [[ $# -ge 2 ]] || die "--timeout needs seconds"; timeout_seconds=$2; shift 2 ;;
     --only) [[ $# -ge 2 ]] || die "--only needs a slug"; only_slug=$2; shift 2 ;;
+    --service) [[ $# -ge 2 ]] || die "--service needs a Compose service name"; service_name=$2; shift 2 ;;
+    --build) build_service=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "Unknown argument: $1" ;;
   esac
@@ -51,7 +61,12 @@ done
 [[ "$mode" == apply ]] || { usage; exit 2; }
 [[ -n "$ssh_key" && -f "$ssh_key" ]] || die "--ssh-key must name an existing private key"
 [[ "$timeout_seconds" =~ ^[0-9]+$ && "$timeout_seconds" -ge 60 ]] || die "--timeout must be at least 60 seconds"
-command -v jq >/dev/null 2>&1 || die "jq is required"
+[[ -z "$service_name" || -n "$only_slug" ]] || die "--service requires --only"
+[[ -z "$service_name" || "$service_name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "invalid Compose service name"
+[[ $build_service -eq 0 || -n "$service_name" ]] || die "--build requires --service"
+for command_name in base64 jq; do
+  command -v "$command_name" >/dev/null 2>&1 || die "$command_name is required"
+done
 
 resource_specs=(
   'infrastructure|Shared Infrastructure Stack'
@@ -131,6 +146,37 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" true
+
+if [[ -n "$service_name" ]]; then
+  resource_name=""
+  for resource_spec in "${resource_specs[@]}"; do
+    IFS='|' read -r slug candidate_name <<<"$resource_spec"
+    if [[ "$slug" == "$only_slug" ]]; then
+      resource_name=$candidate_name
+      break
+    fi
+  done
+  [[ -n "$resource_name" ]] || die "could not resolve resource name for $only_slug"
+  resource_name_b64=$(printf '%s' "$resource_name" | base64 | tr -d '\n')
+  # The resource name is base64-encoded locally before interpolation.
+  # shellcheck disable=SC2029
+  application_json=$(ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "docker exec coolify php artisan tinker --execute='\$apps=App\\Models\\Application::where(\"name\",base64_decode(\"$resource_name_b64\"))->get(); print(json_encode([\"matches\"=>\$apps->count(),\"uuid\"=>\$apps->first()?->uuid,\"active_deployments\"=>\$apps->isEmpty()?0:App\\Models\\ApplicationDeploymentQueue::where(\"application_id\",\$apps->first()->id)->whereIn(\"status\",[\"queued\",\"in_progress\"])->count()]));'")
+  [[ $(jq -r '.matches' <<<"$application_json") == 1 ]] || die "expected exactly one existing application named $resource_name"
+  [[ $(jq -r '.active_deployments' <<<"$application_json") == 0 ]] || die "$resource_name has an active Coolify deployment; refusing service-level deployment"
+  application_uuid=$(jq -r '.uuid' <<<"$application_json")
+  [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID"
+
+  echo "Redeploying only $only_slug/$service_name..."
+  # All interpolated arguments are constrained to alphanumeric service/UUID
+  # values or a validated integer timeout.
+  # shellcheck disable=SC2029
+  ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "bash -s -- '$application_uuid' '$service_name' '$timeout_seconds' '$build_service'" \
+    < "$repo_root/scripts/server/redeploy-compose-service"
+  echo "DONE: $only_slug/$service_name redeployed; every non-target container ID was unchanged."
+  exit 0
+fi
 
 api_state=$(ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
   "docker exec coolify php artisan tinker --execute='print(json_encode([\"enabled\"=>App\\Models\\InstanceSettings::get()->is_api_enabled,\"allowed\"=>App\\Models\\InstanceSettings::get()->allowed_ips]));'")

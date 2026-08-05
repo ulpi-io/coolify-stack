@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+application_uuid=${1:-}
+service_name=${2:-}
+timeout_seconds=${3:-}
+build_service=${4:-0}
+applications_dir=${COOLIFY_APPLICATIONS_DIR:-/data/coolify/applications}
+docker_bin=${DOCKER_BIN:-docker}
+
+die() {
+  echo "ERROR: $*" >&2
+  exit 1
+}
+
+[[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "invalid application UUID"
+[[ "$service_name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "invalid Compose service name"
+[[ "$timeout_seconds" =~ ^[0-9]+$ && "$timeout_seconds" -ge 60 ]] || die "invalid timeout"
+[[ "$build_service" == 0 || "$build_service" == 1 ]] || die "invalid build mode"
+
+configuration_dir="$applications_dir/$application_uuid"
+compose_file="$configuration_dir/docker-compose.yaml"
+env_file="$configuration_dir/.env"
+[[ -f "$compose_file" ]] || die "Coolify persisted Compose file is missing: $compose_file"
+[[ -f "$env_file" ]] || die "Coolify persisted environment file is missing: $env_file"
+
+compose=(
+  "$docker_bin" compose
+  --env-file "$env_file"
+  --project-name "$application_uuid"
+  --project-directory "$configuration_dir"
+  -f "$compose_file"
+)
+
+"${compose[@]}" config --services | grep -Fxq "$service_name" ||
+  die "service $service_name is not present in Coolify's persisted Compose configuration"
+
+project_containers() {
+  "$docker_bin" ps -a \
+    --filter "label=com.docker.compose.project=$application_uuid" \
+    --format '{{.ID}}|{{.Names}}|{{.Label "com.docker.compose.service"}}'
+}
+
+target_before=$(project_containers | awk -F'|' -v service="$service_name" '$3 == service {print $1}')
+target_before_count=$(wc -w <<<"$target_before" | tr -d ' ')
+(( target_before_count <= 1 )) ||
+  die "service $service_name has multiple containers; refusing ambiguous service-level deployment"
+old_target_id=$target_before
+non_target_before=$(project_containers | awk -F'|' -v service="$service_name" '$3 != service {print}' | sort)
+
+if [[ "$build_service" == 1 ]]; then
+  available_memory_mb=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
+  available_disk_mb=$(df -Pm /var/lib/docker | awk 'NR == 2 {print $4}')
+  (( available_memory_mb >= 2048 )) ||
+    die "service build requires at least 2048 MiB available memory; found ${available_memory_mb} MiB"
+  (( available_disk_mb >= 4096 )) ||
+    die "service build requires at least 4096 MiB free Docker disk; found ${available_disk_mb} MiB"
+fi
+
+up_args=(up -d --no-deps --force-recreate)
+if [[ "$build_service" == 1 ]]; then
+  up_args+=(--build)
+else
+  up_args+=(--no-build)
+fi
+up_args+=("$service_name")
+
+set +e
+"${compose[@]}" "${up_args[@]}"
+up_exit=$?
+set -e
+
+non_target_after=$(project_containers | awk -F'|' -v service="$service_name" '$3 != service {print}' | sort)
+[[ "$non_target_after" == "$non_target_before" ]] ||
+  die "a non-target container changed while redeploying $service_name"
+[[ $up_exit -eq 0 ]] || die "docker compose failed while redeploying $service_name"
+
+started_at=$SECONDS
+while true; do
+  target_after=$(project_containers | awk -F'|' -v service="$service_name" '$3 == service {print $1}')
+  if [[ $(wc -w <<<"$target_after" | tr -d ' ') == 1 ]]; then
+    state=$("$docker_bin" inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$target_after")
+    case "$state" in
+      running\|healthy|running\|none) break ;;
+      exited\|*|dead\|*) die "service $service_name entered state $state" ;;
+    esac
+  fi
+  (( SECONDS - started_at < timeout_seconds )) || die "service $service_name did not become healthy before timeout"
+  sleep 2
+done
+
+[[ -z "$old_target_id" || "$target_after" != "$old_target_id" ]] ||
+  die "service $service_name container was not recreated"
+non_target_final=$(project_containers | awk -F'|' -v service="$service_name" '$3 != service {print}' | sort)
+[[ "$non_target_final" == "$non_target_before" ]] ||
+  die "a non-target container changed while waiting for $service_name health"
+
+if [[ -n "$old_target_id" ]]; then
+  echo "Redeployed service $service_name ($old_target_id -> $target_after)."
+else
+  echo "Created missing service $service_name ($target_after)."
+fi
