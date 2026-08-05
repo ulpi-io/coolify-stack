@@ -39,6 +39,7 @@ exact hostnames configured in Coolify, and `@` denotes a zone apex.
 | `agentshq.sh` | `api` | `A` | `68.183.135.86` |
 | `teamtoast.ai` | `www` | `A` | `68.183.135.86` |
 | `teamtoast.ai` | `api` | `A` | `68.183.135.86` |
+| `clavinci.com` | `@` | `A` | `68.183.135.86` |
 | `clavinci.com` | `www` | `A` | `68.183.135.86` |
 | `clavinci.com` | `api` | `A` | `68.183.135.86` |
 | `togglebox.dev` | `www` | `A` | `68.183.135.86` |

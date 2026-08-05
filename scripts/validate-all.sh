@@ -145,6 +145,7 @@ grep -Fq 'is_container_label_escape_enabled:false' scripts/create-resources.sh |
   exit 1
 }
 for compose_file in \
+  platforms/insight/compose.yaml \
   platforms/plane/compose.yaml \
   platforms/postiz/compose.yaml \
   platforms/nudgra-oss/compose.yaml \
@@ -161,6 +162,27 @@ do
     exit 1
   }
 done
+
+grep -Fq 'traefik.http.middlewares.clavinci-force-https.redirectscheme.permanent: "true"' platforms/insight/compose.yaml || {
+  echo "Clavinci HTTP routes must permanently redirect to HTTPS" >&2
+  exit 1
+}
+grep -Fq 'traefik.http.routers.clavinci-apex-https.tls.certresolver: letsencrypt' platforms/insight/compose.yaml || {
+  echo "Clavinci apex redirect must provision a trusted HTTPS certificate" >&2
+  exit 1
+}
+for clavinci_router in apex-http apex-https www-http api-http; do
+  grep -Fq "traefik.http.routers.clavinci-${clavinci_router}.priority: \"10000\"" platforms/insight/compose.yaml || {
+    echo "Clavinci ${clavinci_router} redirect router must outrank Coolify's generated router" >&2
+    exit 1
+  }
+done
+# Match the literal nginx variable in the redirect response.
+# shellcheck disable=SC2016
+grep -Fq 'return 301 https://www.clavinci.com$request_uri;' platforms/insight/apex-redirect.conf || {
+  echo "Clavinci apex must permanently redirect to canonical www HTTPS" >&2
+  exit 1
+}
 
 if ! grep -Fq 'temporal-namespace-bootstrap:' infrastructure/compose.yaml ||
   ! grep -Fq 'namespace create --namespace postiz' infrastructure/compose.yaml
