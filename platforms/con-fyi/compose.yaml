@@ -17,13 +17,9 @@ services:
         COPY . /usr/share/nginx/html
         COPY nginx.conf /etc/nginx/conf.d/default.conf
     expose: ["80"]
-    networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
-
-networks:
-  internal:
