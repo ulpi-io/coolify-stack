@@ -70,6 +70,16 @@ grep -Fq 'APP_FRONTEND_URL=https://www.socialreply.ai' platforms/social-reply/ge
   echo "SocialReply must use www.socialreply.ai as its canonical frontend origin" >&2
   exit 1
 }
+grep -Fq 'NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL=hello@opengrowthgroup.co' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply must publish its monitored privacy contact address" >&2
+  exit 1
+}
+# Match the literal Compose interpolation expression.
+# shellcheck disable=SC2016
+[[ $(grep -Fc 'NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL: ${NEXT_PUBLIC_PRIVACY_CONTACT_EMAIL:?required}' platforms/social-reply/compose.yaml) == 2 ]] || {
+  echo "SocialReply web must receive its privacy contact at build time and runtime" >&2
+  exit 1
+}
 # Match the literal nginx request URI variable.
 # shellcheck disable=SC2016
 grep -Fq 'return 301 https://www.socialreply.ai$request_uri;' platforms/social-reply/apex-redirect.conf || {
