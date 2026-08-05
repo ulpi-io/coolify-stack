@@ -199,6 +199,6 @@ done
 if [[ -n "$only_slug" ]]; then
   echo "DONE: $only_slug deployed without touching any other resource."
 else
-  [[ $deployed_count -eq 20 ]] || die "expected to deploy 20 resources, deployed $deployed_count"
-  echo "DONE: all 20 Coolify resources deployed in dependency order."
+  [[ $deployed_count -eq 21 ]] || die "expected to deploy 21 resources, deployed $deployed_count"
+  echo "DONE: all 21 Coolify resources deployed in dependency order."
 fi

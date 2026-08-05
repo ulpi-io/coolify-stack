@@ -348,12 +348,12 @@ for stack in "${stacks[@]}"; do
   # rows. Wait until the extracted key set is stable before replacing values.
   parsed=0
   stable_count=0
-  previous_env_signature=""
+  previous_env_signature="__uninitialized__"
   for _ in {1..60}; do
     application_json=$(api GET "applications/$application_uuid" </dev/null) || die "could not inspect $slug"
     envs_json=$(api GET "applications/$application_uuid/envs" </dev/null) || die "could not inspect $slug environment"
     env_signature=$(jq -r '[.[].key] | sort | join(",")' <<<"$envs_json")
-    if [[ $(jq -r '(.docker_compose_raw // "") | length > 0' <<<"$application_json") == true && -n "$env_signature" ]]; then
+    if [[ $(jq -r '(.docker_compose_raw // "") | length > 0' <<<"$application_json") == true ]]; then
       if [[ "$env_signature" == "$previous_env_signature" ]]; then
         stable_count=$((stable_count + 1))
       else
@@ -421,5 +421,5 @@ done < "$manifest"
 if [[ -n "$only_slug" ]]; then
   echo "DONE: $only_slug project and configured Git Compose resource created without touching any other project; nothing was deployed."
 else
-  echo "DONE: 20 projects and 20 configured Git Compose resources created; nothing was deployed."
+  echo "DONE: 21 projects and 21 configured Git Compose resources created; nothing was deployed."
 fi
