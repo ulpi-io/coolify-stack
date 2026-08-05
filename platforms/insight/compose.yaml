@@ -84,6 +84,13 @@ services:
     <<: *service-defaults
     labels:
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+      traefik.http.routers.clavinci-dashboard-https.entrypoints: https
+      traefik.http.routers.clavinci-dashboard-https.priority: "10000"
+      traefik.http.routers.clavinci-dashboard-https.rule: Host(`www.clavinci.com`)
+      traefik.http.routers.clavinci-dashboard-https.service: clavinci-dashboard
+      traefik.http.routers.clavinci-dashboard-https.tls: "true"
+      traefik.http.routers.clavinci-dashboard-https.tls.certresolver: letsencrypt
+      traefik.http.services.clavinci-dashboard.loadbalancer.server.port: "8080"
     build:
       context: https://github.com/ulpi-io/insight.git#main
       dockerfile: apps/dashboard/Dockerfile

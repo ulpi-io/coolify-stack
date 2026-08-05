@@ -171,6 +171,10 @@ grep -Fq 'traefik.http.routers.clavinci-apex-https.tls.certresolver: letsencrypt
   echo "Clavinci apex redirect must provision a trusted HTTPS certificate" >&2
   exit 1
 }
+grep -Fq 'traefik.http.services.clavinci-dashboard.loadbalancer.server.port: "8080"' platforms/insight/compose.yaml || {
+  echo "Clavinci dashboard route must target its nginx port explicitly" >&2
+  exit 1
+}
 for clavinci_router in apex-http apex-https www-http api-http; do
   grep -Fq "traefik.http.routers.clavinci-${clavinci_router}.priority: \"10000\"" platforms/insight/compose.yaml || {
     echo "Clavinci ${clavinci_router} redirect router must outrank Coolify's generated router" >&2
