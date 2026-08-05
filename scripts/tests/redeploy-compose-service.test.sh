@@ -19,6 +19,7 @@ printf 'before\n' > "$state_file"
 cat > "$fake_docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+[[ ${COOLIFY_RESOURCE_UUID:-} == testapplication ]] || exit 65
 printf '%s\n' "$*" >> "$FAKE_DOCKER_LOG_FILE"
 
 case "$1" in

@@ -18,6 +18,11 @@ die() {
 [[ "$timeout_seconds" =~ ^[0-9]+$ && "$timeout_seconds" -ge 60 ]] || die "invalid timeout"
 [[ "$build_service" == 0 || "$build_service" == 1 ]] || die "invalid build mode"
 
+# Coolify injects this during normal deployments but does not persist it in
+# the application's .env. Export it so image names and ingress-network labels
+# resolve exactly as they do in a Coolify-managed deployment.
+export COOLIFY_RESOURCE_UUID=$application_uuid
+
 configuration_dir="$applications_dir/$application_uuid"
 compose_file="$configuration_dir/docker-compose.yaml"
 env_file="$configuration_dir/.env"
