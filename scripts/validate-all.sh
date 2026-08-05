@@ -62,8 +62,18 @@ grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","
   echo "Albert web/API domain mapping is missing" >&2
   exit 1
 }
-grep -Fq '{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}' scripts/create-resources.sh || {
-  echo "SocialReply web/API/Reverb domain mapping is missing" >&2
+grep -Fq '{"name":"web","domain":"https://www.socialreply.ai"},{"name":"redirect","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}' scripts/create-resources.sh || {
+  echo "SocialReply canonical web/apex redirect/API/Reverb domain mapping is missing" >&2
+  exit 1
+}
+grep -Fq 'APP_FRONTEND_URL=https://www.socialreply.ai' platforms/social-reply/generate-env.sh || {
+  echo "SocialReply must use www.socialreply.ai as its canonical frontend origin" >&2
+  exit 1
+}
+# Match the literal nginx request URI variable.
+# shellcheck disable=SC2016
+grep -Fq 'return 301 https://www.socialreply.ai$request_uri;' platforms/social-reply/apex-redirect.conf || {
+  echo "SocialReply apex must permanently redirect to the canonical www host" >&2
   exit 1
 }
 grep -Fq '{"name":"portal","domain":"https://agents.con.fyi"}' scripts/create-resources.sh || {

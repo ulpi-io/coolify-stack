@@ -40,8 +40,8 @@ tmp=$(mktemp "$(dirname "$output")/.social-reply.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://api.socialreply.ai
-APP_FRONTEND_URL=https://socialreply.ai
-NEXT_PUBLIC_BASE_URL=https://socialreply.ai
+APP_FRONTEND_URL=https://www.socialreply.ai
+NEXT_PUBLIC_BASE_URL=https://www.socialreply.ai
 NEXT_PUBLIC_API_BASE_URL=https://api.socialreply.ai
 NEXT_PUBLIC_REVERB_HOST=ws.socialreply.ai
 NEXT_PUBLIC_REVERB_PORT=443

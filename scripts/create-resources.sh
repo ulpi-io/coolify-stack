@@ -117,7 +117,7 @@ stacks=(
   'n8n|N8N|/platforms/n8n/compose.yaml|N8N Stack|[{"name":"n8n","domain":"https://workflow.con.fyi"}]|Production n8n workflow automation stack.'
   'twenty|Twenty|/platforms/twenty/compose.yaml|Twenty Stack|[{"name":"twenty","domain":"https://crm.con.fyi"}]|Production Twenty CRM stack.'
   'buzz|Buzz|/platforms/buzz/compose.yaml|Buzz Stack|[{"name":"relay","domain":"https://buzz.con.fyi"}]|Production Buzz human-and-agent workspace relay.'
-  'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}]|Production SocialReply conversational-marketing platform.'
+  'social-reply|SocialReply|/platforms/social-reply/compose.yaml|SocialReply Stack|[{"name":"web","domain":"https://www.socialreply.ai"},{"name":"redirect","domain":"https://socialreply.ai"},{"name":"nginx","domain":"https://api.socialreply.ai"},{"name":"reverb","domain":"https://ws.socialreply.ai"}]|Production SocialReply conversational-marketing platform.'
   'qm|QM Agents|/platforms/qm/compose.yaml|QM Stack|[{"name":"portal","domain":"https://agents.con.fyi"}]|Production QM agent workspace with a private local sandbox daemon.'
 )
 

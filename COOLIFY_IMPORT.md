@@ -105,7 +105,8 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/n8n` | `n8n` | `https://workflow.con.fyi` |
 | `platforms/twenty` | `twenty` | `https://crm.con.fyi` |
 | `platforms/buzz` | `relay` | `https://buzz.con.fyi` |
-| `platforms/social-reply` | `web` | `https://socialreply.ai` |
+| `platforms/social-reply` | `web` | `https://www.socialreply.ai` |
+| `platforms/social-reply` | `redirect` | `https://socialreply.ai` |
 | `platforms/social-reply` | `nginx` | `https://api.socialreply.ai` |
 | `platforms/social-reply` | `reverb` | `https://ws.socialreply.ai` |
 | `platforms/qm` | `portal` | `https://agents.con.fyi` |
@@ -129,4 +130,5 @@ For SocialReply specifically, run migrations twice against the fresh pgvector
 database, verify the Laravel `/up` route, Next.js `/en` render, Horizon status,
 scheduler enumeration, and the Reverb `/up` route, then exercise one queue job,
 one S3 object round trip, one captured email, and one authenticated Sanctum
-session across `socialreply.ai` and `api.socialreply.ai`.
+session across `www.socialreply.ai` and `api.socialreply.ai`, and confirm every
+apex path receives a `301` to the same path on `www.socialreply.ai`.

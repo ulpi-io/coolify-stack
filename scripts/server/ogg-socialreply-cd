@@ -141,7 +141,7 @@ while true; do
 done
 
 container_state=$(docker ps -a --format '{{.Names}}|{{.Status}}' | awk -F'|' -v marker="$application_uuid" 'index($1, marker) > 0 { print }')
-for service in app nginx horizon scheduler reverb web; do
+for service in app nginx horizon scheduler reverb web redirect; do
   count=$(grep -Ec "^${service}-${application_uuid}-.*\|Up .+ \(healthy\)$" <<<"$container_state" || true)
   [[ "$count" == 1 ]] || die "expected one healthy $service container, found $count"
 done
@@ -154,7 +154,12 @@ if docker exec "$app_container" php artisan migrate:status --no-ansi | grep -q '
   die "SocialReply has pending migrations after deployment"
 fi
 
-curl -ksS --fail --resolve socialreply.ai:443:127.0.0.1 https://socialreply.ai/en >/dev/null
+curl -ksS --fail --resolve www.socialreply.ai:443:127.0.0.1 https://www.socialreply.ai/en >/dev/null
+apex_redirect=$(curl -ksS --resolve socialreply.ai:443:127.0.0.1 \
+  -o /dev/null -w '%{http_code}|%{redirect_url}' \
+  'https://socialreply.ai/en?source=deploy-check')
+[[ "$apex_redirect" == '301|https://www.socialreply.ai/en?source=deploy-check' ]] || \
+  die "SocialReply apex redirect is incorrect: $apex_redirect"
 curl -ksS --fail --resolve api.socialreply.ai:443:127.0.0.1 https://api.socialreply.ai/up >/dev/null
 curl -ksS --fail --resolve ws.socialreply.ai:443:127.0.0.1 https://ws.socialreply.ai/up >/dev/null
 

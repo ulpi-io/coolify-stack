@@ -22,12 +22,14 @@ This repository contains the complete production Compose shape for the OGG portf
 - [n8n](https://workflow.con.fyi) ([recipe](platforms/n8n/))
 - [Twenty](https://crm.con.fyi) ([recipe](platforms/twenty/))
 - Buzz relay (planned at `wss://buzz.con.fyi`; [recipe](platforms/buzz/); packaged desktop client connects over WSS)
-- [SocialReply](https://socialreply.ai) ([API](https://api.socialreply.ai), [realtime](https://ws.socialreply.ai), [recipe](platforms/social-reply/))
+- [SocialReply](https://www.socialreply.ai) ([API](https://api.socialreply.ai), [realtime](https://ws.socialreply.ai), [recipe](platforms/social-reply/))
 - [QM Agents](https://agents.con.fyi) ([recipe](platforms/qm/))
 
-## Production DNS A records
+## Production DNS records
 
-Every record below points to the production server at `68.183.135.86`. These are the exact hostnames configured in Coolify; `@` denotes a zone apex.
+Every address record below points to the production server at `68.183.135.86`;
+the SocialReply `www` CNAME resolves through its apex record. These are the
+exact hostnames configured in Coolify, and `@` denotes a zone apex.
 
 | DNS zone | Name | Type | Value |
 | --- | --- | --- | --- |
@@ -59,15 +61,19 @@ Every record below points to the production server at `68.183.135.86`. These are
 | `con.fyi` | `workflow` | `A` | `68.183.135.86` |
 | `con.fyi` | `crm` | `A` | `68.183.135.86` |
 | `con.fyi` | `agents` | `A` | `68.183.135.86` |
+| `socialreply.ai` | `@` | `A` | `68.183.135.86` |
+| `socialreply.ai` | `www` | `CNAME` | `@` |
+| `socialreply.ai` | `api` | `A` | `68.183.135.86` |
+| `socialreply.ai` | `ws` | `A` | `68.183.135.86` |
 
 The Buzz recipe configures `buzz.con.fyi`, but that DNS record is not present
 yet. Add `con.fyi` / `buzz` / `A` / `68.183.135.86` before deployment; this
 repository intentionally does not mutate DNS.
 
-The SocialReply recipe configures `socialreply.ai`, `api.socialreply.ai`, and
-`ws.socialreply.ai`. Before deployment, verify or
-create an `A` record for each hostname pointing to `68.183.135.86`; this
-repository does not create those records.
+The SocialReply recipe uses `www.socialreply.ai` as its canonical website and
+permanently redirects `socialreply.ai` to the same path on that host. Before
+deployment, point the apex, API, and WebSocket `A` records to `68.183.135.86`
+and point the `www` CNAME at the apex; this repository does not create DNS.
 
 The QM recipe configures `agents.con.fyi`. Add `con.fyi` / `agents` / `A` /
 `68.183.135.86` before public use; this repository does not create that record.
