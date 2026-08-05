@@ -7,7 +7,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [Kensi AI](https://www.kensi.ai) ([API](https://api.kensi.ai), [recipe](platforms/kensi-ai/))
 - [AgentsHQ](https://www.agentshq.sh) ([API](https://api.agentshq.sh), [recipe](platforms/agentshq/))
 - [TeamToast](https://www.teamtoast.ai) ([API](https://api.teamtoast.ai), [recipe](platforms/open-kudos/))
-- [Clavinci](https://www.clavinci.com) ([API](https://api.clavinci.com), [recipe](platforms/insight/))
+- [Clavinci](https://www.clavinci.com) ([dashboard](https://app.clavinci.com), [API](https://api.clavinci.com), [recipe](platforms/insight/))
 - [Togglebox](https://www.togglebox.dev) ([API](https://api.togglebox.dev), [recipe](platforms/togglebox/))
 - [OpenPay](https://www.openpay.fyi) ([API](https://api.openpay.fyi), [recipe](platforms/openpay/))
 - [Ploon](https://www.ploon.ai) ([recipe](platforms/ploon/))
@@ -41,6 +41,7 @@ exact hostnames configured in Coolify, and `@` denotes a zone apex.
 | `teamtoast.ai` | `api` | `A` | `68.183.135.86` |
 | `clavinci.com` | `@` | `A` | `68.183.135.86` |
 | `clavinci.com` | `www` | `A` | `68.183.135.86` |
+| `clavinci.com` | `app` | `A` | `68.183.135.86` |
 | `clavinci.com` | `api` | `A` | `68.183.135.86` |
 | `togglebox.dev` | `www` | `A` | `68.183.135.86` |
 | `togglebox.dev` | `api` | `A` | `68.183.135.86` |

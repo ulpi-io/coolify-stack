@@ -60,7 +60,7 @@ services:
     labels:
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     build:
-      context: https://github.com/ulpi-io/insight.git#main
+      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
       dockerfile: apps/api/Dockerfile
       secrets:
         - source: git_auth_token
@@ -80,19 +80,64 @@ services:
       interval: 15s
       timeout: 5s
       retries: 10
+
+  marketing:
+    <<: *service-defaults
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+      traefik.http.middlewares.clavinci-marketing-force-https.redirectscheme.scheme: https
+      traefik.http.middlewares.clavinci-marketing-force-https.redirectscheme.permanent: "true"
+      traefik.http.routers.clavinci-marketing-http.entrypoints: http
+      traefik.http.routers.clavinci-marketing-http.priority: "11000"
+      traefik.http.routers.clavinci-marketing-http.rule: Host(`www.clavinci.com`)
+      traefik.http.routers.clavinci-marketing-http.middlewares: clavinci-marketing-force-https
+      traefik.http.routers.clavinci-marketing-http.service: clavinci-marketing
+      traefik.http.routers.clavinci-marketing-https.entrypoints: https
+      traefik.http.routers.clavinci-marketing-https.priority: "11000"
+      traefik.http.routers.clavinci-marketing-https.rule: Host(`www.clavinci.com`)
+      traefik.http.routers.clavinci-marketing-https.service: clavinci-marketing
+      traefik.http.routers.clavinci-marketing-https.tls: "true"
+      traefik.http.routers.clavinci-marketing-https.tls.certresolver: letsencrypt
+      traefik.http.services.clavinci-marketing.loadbalancer.server.port: "3000"
+    build:
+      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
+      dockerfile: apps/marketing/Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: https://www.clavinci.com
+      secrets:
+        - source: git_auth_token
+          target: GIT_AUTH_TOKEN
+    expose: ["3000"]
+    networks: [default]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   dashboard:
     <<: *service-defaults
     labels:
+      traefik.enable: "true"
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+      traefik.http.middlewares.clavinci-dashboard-force-https.redirectscheme.scheme: https
+      traefik.http.middlewares.clavinci-dashboard-force-https.redirectscheme.permanent: "true"
+      traefik.http.routers.clavinci-dashboard-http.entrypoints: http
+      traefik.http.routers.clavinci-dashboard-http.priority: "11000"
+      traefik.http.routers.clavinci-dashboard-http.rule: Host(`app.clavinci.com`)
+      traefik.http.routers.clavinci-dashboard-http.middlewares: clavinci-dashboard-force-https
+      traefik.http.routers.clavinci-dashboard-http.service: clavinci-dashboard
       traefik.http.routers.clavinci-dashboard-https.entrypoints: https
-      traefik.http.routers.clavinci-dashboard-https.priority: "10000"
-      traefik.http.routers.clavinci-dashboard-https.rule: Host(`www.clavinci.com`)
+      traefik.http.routers.clavinci-dashboard-https.priority: "11000"
+      traefik.http.routers.clavinci-dashboard-https.rule: Host(`app.clavinci.com`)
       traefik.http.routers.clavinci-dashboard-https.service: clavinci-dashboard
       traefik.http.routers.clavinci-dashboard-https.tls: "true"
       traefik.http.routers.clavinci-dashboard-https.tls.certresolver: letsencrypt
       traefik.http.services.clavinci-dashboard.loadbalancer.server.port: "8080"
     build:
-      context: https://github.com/ulpi-io/insight.git#main
+      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
       dockerfile: apps/dashboard/Dockerfile
       secrets:
         - source: git_auth_token
@@ -100,7 +145,7 @@ services:
     expose: ["8080"]
     environment:
       ULPI_API_URL: http://api:8080
-    networks: [internal]
+    networks: [default, internal]
     depends_on:
       api:
         condition: service_healthy

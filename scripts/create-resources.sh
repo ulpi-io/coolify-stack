@@ -102,7 +102,7 @@ stacks=(
   'kensi-ai|Kensi AI|/platforms/kensi-ai/compose.yaml|Kensi AI Stack|[{"name":"web","domain":"https://www.kensi.ai"},{"name":"nginx","domain":"https://api.kensi.ai"}]|Production Kensi AI web and API stack.'
   'agentshq|AgentsHQ|/platforms/agentshq/compose.yaml|AgentsHQ Stack|[{"name":"web","domain":"https://www.agentshq.sh"},{"name":"api","domain":"https://api.agentshq.sh"}]|Production AgentsHQ web and API stack.'
   'open-kudos|TeamToast|/platforms/open-kudos/compose.yaml|TeamToast Stack|[{"name":"web","domain":"https://www.teamtoast.ai"},{"name":"nginx","domain":"https://api.teamtoast.ai"}]|Production TeamToast web and Open Kudos API stack.'
-  'insight|Clavinci|/platforms/insight/compose.yaml|Clavinci Stack|[{"name":"dashboard","domain":"https://www.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}]|Production Clavinci dashboard and API stack.'
+  'insight|Clavinci|/platforms/insight/compose.yaml|Clavinci Stack|[{"name":"marketing","domain":"https://www.clavinci.com"},{"name":"dashboard","domain":"https://app.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}]|Production Clavinci marketing, dashboard, and API stack.'
   'togglebox|Togglebox|/platforms/togglebox/compose.yaml|Togglebox Stack|[{"name":"admin","domain":"https://www.togglebox.dev"},{"name":"api","domain":"https://api.togglebox.dev"}]|Production Togglebox admin and API stack.'
   'openpay|OpenPay|/platforms/openpay/compose.yaml|OpenPay Stack|[{"name":"web","domain":"https://www.openpay.fyi"},{"name":"nginx","domain":"https://api.openpay.fyi"}]|Production OpenPay web and API stack.'
   'ploon|Ploon|/platforms/ploon/compose.yaml|Ploon Stack|[{"name":"web","domain":"https://www.ploon.ai"}]|Production Ploon web stack.'

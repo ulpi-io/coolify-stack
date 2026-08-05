@@ -54,8 +54,8 @@ for generator in platforms/*/generate-env.sh; do
   }
 done
 
-grep -Fq '{"name":"dashboard","domain":"https://www.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}' scripts/create-resources.sh || {
-  echo "Clavinci web/API domain mapping is missing" >&2
+grep -Fq '{"name":"marketing","domain":"https://www.clavinci.com"},{"name":"dashboard","domain":"https://app.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}' scripts/create-resources.sh || {
+  echo "Clavinci marketing/dashboard/API domain mapping is missing" >&2
   exit 1
 }
 grep -Fq '{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","domain":"https://api.albert.con.fyi"}' scripts/create-resources.sh || {
@@ -173,6 +173,35 @@ grep -Fq 'traefik.http.routers.clavinci-apex-https.tls.certresolver: letsencrypt
 }
 grep -Fq 'traefik.http.services.clavinci-dashboard.loadbalancer.server.port: "8080"' platforms/insight/compose.yaml || {
   echo "Clavinci dashboard route must target its nginx port explicitly" >&2
+  exit 1
+}
+grep -Fq 'traefik.http.services.clavinci-marketing.loadbalancer.server.port: "3000"' platforms/insight/compose.yaml || {
+  echo "Clavinci marketing route must target its Next.js port explicitly" >&2
+  exit 1
+}
+# Match literal Traefik host rules containing backticks.
+# shellcheck disable=SC2016
+grep -Fq 'traefik.http.routers.clavinci-marketing-https.rule: Host(`www.clavinci.com`)' platforms/insight/compose.yaml || {
+  echo "Clavinci marketing must own the canonical www host" >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+grep -Fq 'traefik.http.routers.clavinci-dashboard-https.rule: Host(`app.clavinci.com`)' platforms/insight/compose.yaml || {
+  echo "Clavinci dashboard must use app.clavinci.com" >&2
+  exit 1
+}
+grep -Fq 'APP_URL=https://app.clavinci.com' platforms/insight/generate-env.sh || {
+  echo "Clavinci dashboard OAuth origin must use app.clavinci.com" >&2
+  exit 1
+}
+grep -Eq '^INSIGHT_SOURCE_REF=[0-9a-f]{40}$' platforms/insight/generate-env.sh || {
+  echo "Clavinci source must be pinned to an exact commit" >&2
+  exit 1
+}
+# Match the literal Compose-time source-ref interpolation expression.
+# shellcheck disable=SC2016
+grep -Fq 'https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}' platforms/insight/compose.yaml || {
+  echo "Clavinci builds must use the pinned source commit" >&2
   exit 1
 }
 for clavinci_router in apex-http apex-https www-http api-http; do
