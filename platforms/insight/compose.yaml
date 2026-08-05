@@ -106,6 +106,7 @@ services:
 networks:
   default:
     name: ${COOLIFY_RESOURCE_UUID:-insight}
+    external: true
   internal:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
