@@ -24,16 +24,18 @@ die() {
 export COOLIFY_RESOURCE_UUID=$application_uuid
 
 configuration_dir="$applications_dir/$application_uuid"
+project_dir=${COOLIFY_SERVICE_PROJECT_DIR:-$configuration_dir}
 compose_file="$configuration_dir/docker-compose.yaml"
 env_file="$configuration_dir/.env"
 [[ -f "$compose_file" ]] || die "Coolify persisted Compose file is missing: $compose_file"
 [[ -f "$env_file" ]] || die "Coolify persisted environment file is missing: $env_file"
+[[ -d "$project_dir" ]] || die "Compose project directory is missing: $project_dir"
 
 compose=(
   "$docker_bin" compose
   --env-file "$env_file"
   --project-name "$application_uuid"
-  --project-directory "$configuration_dir"
+  --project-directory "$project_dir"
   -f "$compose_file"
 )
 

@@ -14,6 +14,7 @@ token_file=/tmp/ogg-coolify-stack-deploy-token
 api_managed=0
 token_created=0
 active_deployment_uuid=""
+remote_service_dir=""
 
 usage() {
   cat >&2 <<'EOF'
@@ -64,7 +65,7 @@ done
 [[ -z "$service_name" || -n "$only_slug" ]] || die "--service requires --only"
 [[ -z "$service_name" || "$service_name" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]] || die "invalid Compose service name"
 [[ $build_service -eq 0 || -n "$service_name" ]] || die "--build requires --service"
-for command_name in base64 jq; do
+for command_name in base64 jq tar; do
   command -v "$command_name" >/dev/null 2>&1 || die "$command_name is required"
 done
 
@@ -139,6 +140,12 @@ cleanup() {
     ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
       "docker exec coolify rm -f $token_file" >/dev/null 2>&1 || true
   fi
+  if [[ "$remote_service_dir" =~ ^/tmp/ogg-compose-service\.[A-Za-z0-9]+$ ]]; then
+    # Remove only the temporary source directory created by service mode.
+    # shellcheck disable=SC2029
+    ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+      "rm -rf -- '$remote_service_dir'" >/dev/null 2>&1 || true
+  fi
   ssh "${ssh_options[@]}" -O exit "$coolify_user@$coolify_host" >/dev/null 2>&1 || true
   rmdir "$ssh_control_dir" >/dev/null 2>&1 || true
   exit "$exit_code"
@@ -167,13 +174,29 @@ if [[ -n "$service_name" ]]; then
   application_uuid=$(jq -r '.uuid' <<<"$application_json")
   [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID"
 
+  source_dir="$repo_root/platforms/$only_slug"
+  [[ "$only_slug" != infrastructure ]] || source_dir="$repo_root/infrastructure"
+  [[ -d "$source_dir" ]] || die "source directory is missing for $only_slug"
+  remote_service_dir=$(ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "mktemp -d /tmp/ogg-compose-service.XXXXXX")
+  [[ "$remote_service_dir" =~ ^/tmp/ogg-compose-service\.[A-Za-z0-9]+$ ]] ||
+    die "server returned an unsafe temporary service directory"
+  # The temporary path is locally validated before interpolation.
+  # shellcheck disable=SC2029
+  tar -C "$source_dir" -cf - . | ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "tar -xf - -C '$remote_service_dir'"
+
   echo "Redeploying only $only_slug/$service_name..."
   # All interpolated arguments are constrained to alphanumeric service/UUID
   # values or a validated integer timeout.
   # shellcheck disable=SC2029
   ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
-    "bash -s -- '$application_uuid' '$service_name' '$timeout_seconds' '$build_service'" \
+    "COOLIFY_SERVICE_PROJECT_DIR='$remote_service_dir' bash -s -- '$application_uuid' '$service_name' '$timeout_seconds' '$build_service'" \
     < "$repo_root/scripts/server/redeploy-compose-service"
+  # shellcheck disable=SC2029
+  ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+    "rm -rf -- '$remote_service_dir'"
+  remote_service_dir=""
   echo "DONE: $only_slug/$service_name redeployed; every non-target container ID was unchanged."
   exit 0
 fi

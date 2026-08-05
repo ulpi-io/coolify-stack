@@ -197,7 +197,10 @@ and verifies that every non-target container ID is unchanged. Without `--build`
 it passes `--no-build`, so a missing image fails safely instead of triggering an
 implicit build. A missing service container may be created; multiple existing
 containers for the selected service are rejected as ambiguous. It never falls
-back to a full application deployment.
+back to a full application deployment. Repository-relative Compose files are
+staged in a uniquely named temporary server directory for the operation; the
+script never edits Coolify's generated `/data/coolify` files and removes only
+its validated temporary directory afterward.
 
 ## Update one application's environment
 
