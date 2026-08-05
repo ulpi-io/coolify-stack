@@ -7,3 +7,4 @@ platforms/*/generated/
 *.shared.env
 *.secrets
 .DS_Store
+DIGITALOCEAN_SERVER.md
