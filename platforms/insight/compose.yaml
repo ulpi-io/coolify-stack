@@ -104,6 +104,8 @@ services:
       retries: 5
 
 networks:
+  default:
+    name: ${COOLIFY_RESOURCE_UUID:-insight}
   internal:
   shared:
     name: ${SHARED_NETWORK_NAME:?SHARED_NETWORK_NAME is required}
