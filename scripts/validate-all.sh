@@ -80,6 +80,12 @@ grep -Fq 'traefik.http.middlewares.socialreply-force-https.redirectscheme.perman
   echo "SocialReply HTTP routes must permanently redirect to HTTPS" >&2
   exit 1
 }
+# Match the literal shell condition in the resource creator.
+# shellcheck disable=SC2016
+grep -Fq '[[ "$slug" == con-fyi || "$slug" == social-reply ]] && force_https_enabled=false' scripts/create-resources.sh || {
+  echo "SocialReply must own its permanent redirects instead of Coolify's generic middleware" >&2
+  exit 1
+}
 grep -Fq '{"name":"portal","domain":"https://agents.con.fyi"}' scripts/create-resources.sh || {
   echo "QM portal domain mapping is missing" >&2
   exit 1

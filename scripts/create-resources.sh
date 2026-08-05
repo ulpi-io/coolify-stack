@@ -323,9 +323,9 @@ for stack in "${stacks[@]}"; do
   # Coolify 4.1.2 validates docker_compose_domains during creation but stores the
   # array incorrectly. Create first, wait for Compose parsing, then PATCH domains.
   force_https_enabled=true
-  # ConFYI performs its permanent redirect inside its own Nginx container so it
-  # does not redefine Coolify's shared redirect middleware for every resource.
-  [[ "$slug" == con-fyi ]] && force_https_enabled=false
+  # ConFYI and SocialReply own their permanent redirects so they do not compete
+  # with Coolify's generic shared redirect middleware.
+  [[ "$slug" == con-fyi || "$slug" == social-reply ]] && force_https_enabled=false
   application_payload=$(jq -n \
     --arg project_uuid "$project_uuid" \
     --arg server_uuid "$server_uuid" \
