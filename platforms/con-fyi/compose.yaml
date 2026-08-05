@@ -16,6 +16,8 @@ services:
         FROM nginx:1.27-alpine
         COPY . /usr/share/nginx/html
     expose: ["80"]
+    labels:
+      traefik.http.middlewares.redirect-to-https.redirectscheme.permanent: "true"
     networks: [internal]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
