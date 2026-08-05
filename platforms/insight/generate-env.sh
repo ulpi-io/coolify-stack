@@ -31,7 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.insight.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://app.clavinci.com
-INSIGHT_SOURCE_REF=13e1fa99cec462c24404051edfac18c6c7a1407b
+INSIGHT_SOURCE_REF=34ac892e854d7b7df53743ba0df9ba269e901f79
 GIT_AUTH_TOKEN=
 ULPI_AUTH_SIGNING_KEY=$(random_hex)
 ULPI_BOOTSTRAP_ADMIN_TOKEN=$(random_hex)
