@@ -73,7 +73,8 @@ repository intentionally does not mutate DNS.
 The SocialReply recipe uses `www.socialreply.ai` as its canonical website and
 permanently redirects `socialreply.ai` to the same path on that host. Before
 deployment, point the apex, API, and WebSocket `A` records to `68.183.135.86`
-and point the `www` CNAME at the apex; this repository does not create DNS.
+and point the `www` CNAME at the apex. All four HTTP hostnames permanently
+redirect to HTTPS; this repository does not create DNS.
 
 The QM recipe configures `agents.con.fyi`. Add `con.fyi` / `agents` / `A` /
 `68.183.135.86` before public use; this repository does not create that record.

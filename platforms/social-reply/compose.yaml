@@ -393,6 +393,24 @@ services:
     image: nginxinc/nginx-unprivileged:1.29-alpine@sha256:0c79d56aee561a1d81c63f00eee5fb5fe29279560cdc55e91425133104c7fbe6
     labels:
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
+      traefik.http.middlewares.socialreply-force-https.redirectscheme.scheme: https
+      traefik.http.middlewares.socialreply-force-https.redirectscheme.permanent: "true"
+      traefik.http.routers.socialreply-apex-http.entrypoints: http
+      traefik.http.routers.socialreply-apex-http.rule: Host(`socialreply.ai`)
+      traefik.http.routers.socialreply-apex-http.service: socialreply-http-redirect
+      traefik.http.routers.socialreply-www-http.entrypoints: http
+      traefik.http.routers.socialreply-www-http.rule: Host(`www.socialreply.ai`)
+      traefik.http.routers.socialreply-www-http.middlewares: socialreply-force-https
+      traefik.http.routers.socialreply-www-http.service: socialreply-http-redirect
+      traefik.http.routers.socialreply-api-http.entrypoints: http
+      traefik.http.routers.socialreply-api-http.rule: Host(`api.socialreply.ai`)
+      traefik.http.routers.socialreply-api-http.middlewares: socialreply-force-https
+      traefik.http.routers.socialreply-api-http.service: socialreply-http-redirect
+      traefik.http.routers.socialreply-ws-http.entrypoints: http
+      traefik.http.routers.socialreply-ws-http.rule: Host(`ws.socialreply.ai`)
+      traefik.http.routers.socialreply-ws-http.middlewares: socialreply-force-https
+      traefik.http.routers.socialreply-ws-http.service: socialreply-http-redirect
+      traefik.http.services.socialreply-http-redirect.loadbalancer.server.port: "8080"
     expose: ["8080"]
     configs:
       - source: apex_redirect

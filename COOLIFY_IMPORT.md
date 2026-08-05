@@ -132,3 +132,5 @@ scheduler enumeration, and the Reverb `/up` route, then exercise one queue job,
 one S3 object round trip, one captured email, and one authenticated Sanctum
 session across `www.socialreply.ai` and `api.socialreply.ai`, and confirm every
 apex path receives a `301` to the same path on `www.socialreply.ai`.
+Also verify that HTTP requests to the apex, `www`, API, and Reverb hostnames
+receive a path-preserving `301` to HTTPS.
