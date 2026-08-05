@@ -322,6 +322,10 @@ for stack in "${stacks[@]}"; do
 
   # Coolify 4.1.2 validates docker_compose_domains during creation but stores the
   # array incorrectly. Create first, wait for Compose parsing, then PATCH domains.
+  force_https_enabled=true
+  # ConFYI performs its permanent redirect inside its own Nginx container so it
+  # does not redefine Coolify's shared redirect middleware for every resource.
+  [[ "$slug" == con-fyi ]] && force_https_enabled=false
   application_payload=$(jq -n \
     --arg project_uuid "$project_uuid" \
     --arg server_uuid "$server_uuid" \
@@ -329,7 +333,8 @@ for stack in "${stacks[@]}"; do
     --arg compose_location "$compose_location" \
     --arg resource_name "$resource_name" \
     --arg description "$description" \
-    '{project_uuid:$project_uuid,server_uuid:$server_uuid,environment_name:"production",git_repository:$repository_url,git_branch:"main",build_pack:"dockercompose",docker_compose_location:$compose_location,name:$resource_name,description:$description,autogenerate_domain:false,instant_deploy:false,is_auto_deploy_enabled:false,is_force_https_enabled:true,connect_to_docker_network:false,is_container_label_escape_enabled:false}')
+    --argjson force_https_enabled "$force_https_enabled" \
+    '{project_uuid:$project_uuid,server_uuid:$server_uuid,environment_name:"production",git_repository:$repository_url,git_branch:"main",build_pack:"dockercompose",docker_compose_location:$compose_location,name:$resource_name,description:$description,autogenerate_domain:false,instant_deploy:false,is_auto_deploy_enabled:false,is_force_https_enabled:$force_https_enabled,connect_to_docker_network:false,is_container_label_escape_enabled:false}')
   application_response=$(printf '%s' "$application_payload" | api POST applications/public) || die "could not create application $resource_name"
   application_uuid=$(jq -er .uuid <<<"$application_response") || die "Coolify returned no application UUID for $resource_name"
   [[ "$application_uuid" =~ ^[A-Za-z0-9]+$ ]] || die "Coolify returned an unsafe application UUID for $resource_name"
