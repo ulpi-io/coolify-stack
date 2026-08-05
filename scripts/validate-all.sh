@@ -90,6 +90,10 @@ done
   echo "SocialReply HTTP redirect routers must outrank Coolify's generated routers" >&2
   exit 1
 }
+grep -Fq 'REVERB_SCALING_ENABLED: "false"' platforms/social-reply/compose.yaml || {
+  echo "Single-instance SocialReply Reverb must not enable Redis horizontal scaling" >&2
+  exit 1
+}
 # Match the literal shell condition in the resource creator.
 # shellcheck disable=SC2016
 grep -Fq '[[ "$slug" == con-fyi || "$slug" == social-reply ]] && force_https_enabled=false' scripts/create-resources.sh || {
