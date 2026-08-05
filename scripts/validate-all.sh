@@ -4,7 +4,7 @@ set -euo pipefail
 repo_root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo_root"
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group con-fyi lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 1; }
 docker compose version >/dev/null
@@ -27,6 +27,7 @@ for generator in platforms/*/generate-env.sh; do
   case "$slug" in
     plane) expected_app_url=https://pm.con.fyi ;;
     postiz) expected_app_url=https://post.con.fyi ;;
+    con-fyi) expected_app_url=https://con.fyi ;;
     nudgra-oss) expected_app_url=https://ig.con.fyi ;;
     n8n) expected_app_url=https://workflow.con.fyi ;;
     twenty) expected_app_url=https://crm.con.fyi ;;
@@ -67,6 +68,10 @@ grep -Fq '{"name":"web","domain":"https://socialreply.ai"},{"name":"nginx","doma
 }
 grep -Fq '{"name":"portal","domain":"https://agents.con.fyi"}' scripts/create-resources.sh || {
   echo "QM portal domain mapping is missing" >&2
+  exit 1
+}
+grep -Fq '{"name":"web","domain":"https://con.fyi"}' scripts/create-resources.sh || {
+  echo "ConFYI web domain mapping is missing" >&2
   exit 1
 }
 
@@ -393,8 +398,8 @@ grep -Fq 'if [[ "$slug" == social-reply || "$slug" == qm ]]' scripts/create-reso
 
 compose_count=$(find infrastructure platforms -type f -name compose.yaml | wc -l | tr -d ' ')
 generator_count=$(find infrastructure platforms -type f -name generate-env.sh | wc -l | tr -d ' ')
-[[ "$compose_count" = 20 ]] || { echo "Expected 20 Compose files, found $compose_count" >&2; exit 1; }
-[[ "$generator_count" = 20 ]] || { echo "Expected 20 env generators, found $generator_count" >&2; exit 1; }
+[[ "$compose_count" = 21 ]] || { echo "Expected 21 Compose files, found $compose_count" >&2; exit 1; }
+[[ "$generator_count" = 21 ]] || { echo "Expected 21 env generators, found $generator_count" >&2; exit 1; }
 
 bash -n infrastructure/generate-env.sh platforms/*/generate-env.sh scripts/*.sh
 if command -v shellcheck >/dev/null 2>&1; then
@@ -409,7 +414,7 @@ trap cleanup EXIT
 
 infrastructure/generate-env.sh --output-dir "$validation_dir" >/dev/null
 fragment_count=$(find "$validation_dir/platforms" -type f -name '*.shared.env' | wc -l | tr -d ' ')
-[[ "$fragment_count" = 19 ]] || { echo "Expected 19 shared fragments, found $fragment_count" >&2; exit 1; }
+[[ "$fragment_count" = 20 ]] || { echo "Expected 20 shared fragments, found $fragment_count" >&2; exit 1; }
 
 qm_validation_token_file="$validation_dir/qm-validation-claude-token"
 qm_validation_resend_file="$validation_dir/qm-validation-resend-key"
@@ -459,4 +464,4 @@ if rg -n ':(latest|stable)([[:space:]]|$)' "$validation_dir" >/dev/null; then
   exit 1
 fi
 
-echo "Validated 20 Compose files, 20 generators, and 19 platform fragments."
+echo "Validated 21 Compose files, 21 generators, and 20 platform fragments."

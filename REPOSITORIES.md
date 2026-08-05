@@ -4,7 +4,7 @@ This is the authoritative repository scope for the Coolify deployment system.
 
 The repository-grounded service inventory, application dependency matrix, shared/dedicated boundaries, and database-engine preservation policy are defined in `SHARED_INFRASTRUCTURE.md`. Coolify is the external deployment platform; it is not part of the OGG infrastructure stack.
 
-Ownership for repositories 1-15 and 22 below: **personal / first-party**.
+Ownership for repositories 1-15 and 22-24 below: **personal / first-party**.
 
 Environment scope for every deployment unit: **production only**.
 
@@ -20,6 +20,7 @@ Environment scope for every deployment unit: **production only**.
 | OpenPay | `OpenPayApi`, `OpenPayWeb` | `https://www.openpay.fyi/` | Supplied by Ciprian |
 | Ploon | `ploon-web` | `https://www.ploon.ai` | Supplied by Ciprian |
 | Open Growth Group website | `open-growth-group-website` | `https://www.opengrowthgroup.co` | Supplied by Ciprian |
+| ConFYI | `ulpi-io/con.fyi` | `https://con.fyi` | Public static source build |
 | Lokei | `lokei` | `https://www.lokei.dev` | Supplied by Ciprian |
 | Albert | `albert` | `https://www.albert.con.fyi`, `https://api.albert.con.fyi` | Supplied by Ciprian |
 | Record Cloud | `record-cloud` | `https://www.record.con.fyi` | Supplied by Ciprian |
@@ -118,3 +119,9 @@ Domains not listed in this table are still to be collected or verified from the 
     - Backing services: isolated database/role on shared PostgreSQL 17; persistent QM data and private nested-Docker volumes
     - Model authentication: Claude harness using `CLAUDE_CODE_OAUTH_TOKEN`
     - Accepted deployment risk: the pinned production dependency tree reports unresolved high-severity findings, including transitive `undici` findings without an available upstream fix; `npm audit` is not an image-build gate until the fork updates those dependencies
+24. https://github.com/ulpi-io/con.fyi
+    - Application: ConFYI
+    - Ownership: personal / first-party
+    - Deployment class: public static HTML and assets served by Nginx
+    - Production route: `https://con.fyi`
+    - Backing services: none

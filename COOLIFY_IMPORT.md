@@ -27,7 +27,7 @@ Run locally on a trusted machine:
 mkdir -p generated
 infrastructure/generate-env.sh --output-dir generated
 
-for slug in kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty social-reply; do
+for slug in kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group con-fyi lokei albert record-cloud plane postiz nudgra-oss n8n twenty social-reply; do
   platforms/$slug/generate-env.sh \
     --shared-env "generated/platforms/$slug.shared.env" \
     --output "generated/$slug.env"
@@ -91,6 +91,7 @@ Import each platform folder as its own Coolify Compose resource using the matchi
 | `platforms/openpay` | `nginx` | `https://api.openpay.fyi` |
 | `platforms/ploon` | `web` | `https://www.ploon.ai` |
 | `platforms/open-growth-group` | `web` | `https://www.opengrowthgroup.co` |
+| `platforms/con-fyi` | `web` | `https://con.fyi` |
 | `platforms/lokei` | `web` | `https://www.lokei.dev` |
 | `platforms/lokei` | `nginx` | `https://api.lokei.dev` |
 | `platforms/lokei` | `relay` | `https://relay.lokei.dev` |

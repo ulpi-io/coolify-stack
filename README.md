@@ -12,6 +12,7 @@ This repository contains the complete production Compose shape for the OGG portf
 - [OpenPay](https://www.openpay.fyi) ([API](https://api.openpay.fyi), [recipe](platforms/openpay/))
 - [Ploon](https://www.ploon.ai) ([recipe](platforms/ploon/))
 - [Open Growth Group](https://www.opengrowthgroup.co) ([recipe](platforms/open-growth-group/))
+- [ConFYI](https://con.fyi) ([recipe](platforms/con-fyi/))
 - [Lokei](https://www.lokei.dev) ([API](https://api.lokei.dev), [recipe](platforms/lokei/))
 - [Albert](https://www.albert.con.fyi) ([API](https://api.albert.con.fyi), [recipe](platforms/albert/))
 - [Record Cloud](https://www.record.con.fyi) ([API](https://api.record.con.fyi), [recipe](platforms/record-cloud/))
@@ -26,7 +27,7 @@ This repository contains the complete production Compose shape for the OGG portf
 
 ## Production DNS A records
 
-Every record below points to the production server at `68.183.135.86`. These are the exact hostnames configured in Coolify; apex domains are not part of the current routing map.
+Every record below points to the production server at `68.183.135.86`. These are the exact hostnames configured in Coolify; `@` denotes a zone apex.
 
 | DNS zone | Name | Type | Value |
 | --- | --- | --- | --- |
@@ -44,6 +45,7 @@ Every record below points to the production server at `68.183.135.86`. These are
 | `openpay.fyi` | `api` | `A` | `68.183.135.86` |
 | `ploon.ai` | `www` | `A` | `68.183.135.86` |
 | `opengrowthgroup.co` | `www` | `A` | `68.183.135.86` |
+| `con.fyi` | `@` | `A` | `68.183.135.86` |
 | `lokei.dev` | `www` | `A` | `68.183.135.86` |
 | `lokei.dev` | `api` | `A` | `68.183.135.86` |
 | `lokei.dev` | `relay` | `A` | `68.183.135.86` |
@@ -73,14 +75,14 @@ The QM recipe configures `agents.con.fyi`. Add `con.fyi` / `agents` / `A` /
 ## Layout
 
 - `infrastructure/compose.yaml` contains the reusable backing services.
-- `infrastructure/generate-env.sh` creates the infrastructure env plus 19 isolated platform fragments.
+- `infrastructure/generate-env.sh` creates the infrastructure env plus 20 isolated platform fragments.
 - `platforms/<slug>/compose.yaml` contains one logical application stack.
 - `platforms/<slug>/generate-env.sh` combines that platform's shared fragment with platform secrets and canonical domain.
 - `scripts/validate-all.sh` resolves every Compose file without starting containers.
 - `scripts/create-resources.sh` generates environments and creates/configures the corresponding Coolify projects and Git Compose resources.
 - `scripts/update-app-env.sh` safely adds or updates selected environment keys for one existing Coolify application.
 
-There are exactly 20 Compose files and 20 env generators: one pair for infrastructure and one pair for each of the 19 platforms in `REPOSITORIES.md`.
+There are exactly 21 Compose files and 21 env generators: one pair for infrastructure and one pair for each of the 20 platforms in `REPOSITORIES.md`.
 
 ## Shared infrastructure
 
@@ -117,7 +119,7 @@ Generators create mode-`0600` files, do not print secret values, and refuse over
 scripts/validate-all.sh
 ```
 
-The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 20 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces the shared PostgreSQL 17 plus pgvector contract used by SocialReply, QM, and the existing PostgreSQL consumers. It never runs `docker compose up`.
+The validator checks the exact folder inventory, lints all shell scripts when ShellCheck is installed, creates throwaway env files, resolves all 21 Compose models, and rejects accidental duplication of shared-service containers inside platform stacks. It also enforces the shared PostgreSQL 17 plus pgvector contract used by SocialReply, QM, and the existing PostgreSQL consumers. It never runs `docker compose up`.
 
 ## Create the Coolify resources
 

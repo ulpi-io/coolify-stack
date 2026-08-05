@@ -1,0 +1,28 @@
+name: con-fyi
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  web:
+    <<: *service-defaults
+    build:
+      context: https://github.com/ulpi-io/con.fyi.git#main
+      dockerfile_inline: |
+        FROM nginx:1.27-alpine
+        COPY . /usr/share/nginx/html
+    expose: ["80"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  internal:

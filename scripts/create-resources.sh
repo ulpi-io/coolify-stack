@@ -94,7 +94,7 @@ else
   [[ "$buzz_owner_pubkey" =~ ^[[:xdigit:]]{64}$ ]] || die "--buzz-owner-pubkey must be a 64-character hex Nostr public key"
 fi
 
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group con-fyi lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
 
 # slug|project|compose path|resource|domains JSON|description
 stacks=(
@@ -107,6 +107,7 @@ stacks=(
   'openpay|OpenPay|/platforms/openpay/compose.yaml|OpenPay Stack|[{"name":"web","domain":"https://www.openpay.fyi"},{"name":"nginx","domain":"https://api.openpay.fyi"}]|Production OpenPay web and API stack.'
   'ploon|Ploon|/platforms/ploon/compose.yaml|Ploon Stack|[{"name":"web","domain":"https://www.ploon.ai"}]|Production Ploon web stack.'
   'open-growth-group|Open Growth Group|/platforms/open-growth-group/compose.yaml|Open Growth Group Stack|[{"name":"web","domain":"https://www.opengrowthgroup.co"}]|Production Open Growth Group website stack.'
+  'con-fyi|ConFYI|/platforms/con-fyi/compose.yaml|ConFYI Stack|[{"name":"web","domain":"https://con.fyi"}]|Public product information and legal pages for ConFYI services.'
   'lokei|Lokei|/platforms/lokei/compose.yaml|Lokei Stack|[{"name":"web","domain":"https://www.lokei.dev"},{"name":"nginx","domain":"https://api.lokei.dev"},{"name":"relay","domain":"https://relay.lokei.dev"}]|Production Lokei web, API, workers, and relay stack.'
   'albert|Albert|/platforms/albert/compose.yaml|Albert Stack|[{"name":"web","domain":"https://www.albert.con.fyi"},{"name":"nginx","domain":"https://api.albert.con.fyi"}]|Production Albert web and API stack.'
   'record-cloud|Record Cloud|/platforms/record-cloud/compose.yaml|Record Cloud Stack|[{"name":"web","domain":"https://www.record.con.fyi"},{"name":"api","domain":"https://api.record.con.fyi"}]|Production Record Cloud web and API stack.'
@@ -204,7 +205,7 @@ done
 sed -i.bak "s/^OPERATOR_EMAIL_ALLOWLIST=.*/OPERATOR_EMAIL_ALLOWLIST=$operator_email/" "$work_dir/nudgra-oss.env"
 rm -f -- "$work_dir/nudgra-oss.env.bak"
 
-[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 20 ]] || die "expected 20 generated env files"
+[[ $(find "$work_dir" -maxdepth 1 -type f -name '*.env' | wc -l | tr -d ' ') == 21 ]] || die "expected 21 generated env files"
 for env_file in "$work_dir"/*.env; do
   [[ $(stat -f '%Lp' "$env_file") == 600 ]] || die "$env_file is not mode 0600"
   ! grep -Eq '=required$|=.+ is required$|=replace-with-|example\.invalid' "$env_file" || die "$env_file still contains a placeholder"

@@ -37,7 +37,7 @@ command -v openssl >/dev/null 2>&1 || { echo "openssl is required" >&2; exit 1; 
 
 infra_env="$output_dir/infrastructure.env"
 fragments_dir="$output_dir/platforms"
-platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
+platforms=(kensi-ai agentshq open-kudos insight togglebox openpay ploon open-growth-group con-fyi lokei albert record-cloud plane postiz nudgra-oss n8n twenty buzz social-reply qm)
 
 if [[ $force -ne 1 ]]; then
   [[ ! -e "$infra_env" ]] || { echo "Refusing to overwrite $infra_env; pass --force" >&2; exit 1; }
@@ -210,6 +210,7 @@ mysql_fragment openpay openpay openpay "$OPENPAY_DB_PASSWORD" \
   "S3_ENDPOINT=http://minio:9000" "S3_REGION=us-east-1" "S3_BUCKET=openpay" "S3_ACCESS_KEY=$OPENPAY_S3_ACCESS_KEY" "S3_SECRET_KEY=$OPENPAY_S3_SECRET_KEY" "S3_PATH_STYLE=true" "${mail_lines[@]}"
 write_fragment ploon
 write_fragment open-growth-group
+write_fragment con-fyi
 # shellcheck disable=SC2046
 mysql_fragment lokei lokei lokei "$LOKEI_DB_PASSWORD" \
   $(cache_lines lokei "$LOKEI_CACHE_PASSWORD") $(queue_lines lokei "$LOKEI_QUEUE_PASSWORD") "${mail_lines[@]}"
@@ -246,5 +247,5 @@ postgres_fragment social-reply socialreply socialreply "$SOCIAL_REPLY_DB_PASSWOR
 postgres_fragment qm qm qm "$QM_DB_PASSWORD"
 
 count=$(find "$fragments_dir" -maxdepth 1 -type f -name '*.shared.env' | wc -l | tr -d ' ')
-[[ "$count" = "19" ]] || { echo "Internal error: expected 19 shared fragments, found $count" >&2; exit 1; }
-echo "Generated infrastructure.env and 19 platform fragments in $output_dir (secrets not displayed)."
+[[ "$count" = "20" ]] || { echo "Internal error: expected 20 shared fragments, found $count" >&2; exit 1; }
+echo "Generated infrastructure.env and 20 platform fragments in $output_dir (secrets not displayed)."

@@ -63,6 +63,7 @@ resource_specs=(
   'openpay|OpenPay Stack'
   'ploon|Ploon Stack'
   'open-growth-group|Open Growth Group Stack'
+  'con-fyi|ConFYI Stack'
   'lokei|Lokei Stack'
   'albert|Albert Stack'
   'record-cloud|Record Cloud Stack'
