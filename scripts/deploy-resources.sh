@@ -183,7 +183,7 @@ if [[ -n "$service_name" ]]; then
     die "server returned an unsafe temporary service directory"
   # The temporary path is locally validated before interpolation.
   # shellcheck disable=SC2029
-  tar -C "$source_dir" -cf - . | ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
+  COPYFILE_DISABLE=1 tar -C "$source_dir" -cf - . | ssh "${ssh_options[@]}" "$coolify_user@$coolify_host" \
     "tar -xf - -C '$remote_service_dir'"
 
   echo "Redeploying only $only_slug/$service_name..."

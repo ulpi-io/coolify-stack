@@ -30,6 +30,9 @@ env_file="$configuration_dir/.env"
 [[ -f "$compose_file" ]] || die "Coolify persisted Compose file is missing: $compose_file"
 [[ -f "$env_file" ]] || die "Coolify persisted environment file is missing: $env_file"
 [[ -d "$project_dir" ]] || die "Compose project directory is missing: $project_dir"
+if [[ "$project_dir" != "$configuration_dir" && ! -e "$project_dir/.env" ]]; then
+  ln -s "$env_file" "$project_dir/.env"
+fi
 
 compose=(
   "$docker_bin" compose
