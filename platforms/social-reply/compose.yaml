@@ -626,7 +626,7 @@ networks:
 
 configs:
   apex_redirect:
-    file: ./apex-redirect.conf
+    file: ./platforms/social-reply/apex-redirect.conf
 
 secrets:
   git_auth_token:

@@ -86,6 +86,10 @@ grep -Fq 'return 301 https://www.socialreply.ai$request_uri;' platforms/social-r
   echo "SocialReply apex must permanently redirect to the canonical www host" >&2
   exit 1
 }
+grep -Fq 'file: ./platforms/social-reply/apex-redirect.conf' platforms/social-reply/compose.yaml || {
+  echo "SocialReply apex redirect config must resolve from Coolify's repository project directory" >&2
+  exit 1
+}
 grep -Fq 'traefik.http.middlewares.socialreply-force-https.redirectscheme.permanent: "true"' platforms/social-reply/compose.yaml || {
   echo "SocialReply HTTP routes must permanently redirect to HTTPS" >&2
   exit 1
