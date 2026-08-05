@@ -191,9 +191,10 @@ scripts/deploy-resources.sh \
 
 Add `--build` only when that selected service's image must be rebuilt. Build
 mode refuses to run with less than 2 GiB available memory or 4 GiB free Docker
-disk. Service mode uses Coolify's persisted Compose configuration, targets one
-service, passes `--no-deps`, refuses to run during an active Coolify deployment,
-and verifies that every non-target container ID is unchanged. Without `--build`
+disk. Service mode layers the resource's current repository `compose.yaml` over
+Coolify's persisted Compose configuration, targets one service, passes
+`--no-deps`, refuses to run during an active Coolify deployment, and verifies
+that every non-target container ID is unchanged. Without `--build`
 it passes `--no-build`, so a missing image fails safely instead of triggering an
 implicit build. A missing service container may be created; multiple existing
 containers for the selected service are rejected as ambiguous. It never falls

@@ -9,11 +9,13 @@ trap cleanup EXIT
 application_uuid=testapplication
 service_name=nginx
 configuration_dir="$test_dir/applications/$application_uuid"
+source_dir="$test_dir/source"
 fake_docker="$test_dir/docker"
 state_file="$test_dir/state"
 log_file="$test_dir/docker.log"
-mkdir -p "$configuration_dir"
+mkdir -p "$configuration_dir" "$source_dir"
 touch "$configuration_dir/docker-compose.yaml" "$configuration_dir/.env"
+touch "$source_dir/compose.yaml"
 printf 'before\n' > "$state_file"
 
 cat > "$fake_docker" <<'EOF'
@@ -48,6 +50,7 @@ EOF
 chmod 755 "$fake_docker"
 
 COOLIFY_APPLICATIONS_DIR="$test_dir/applications" \
+COOLIFY_SERVICE_PROJECT_DIR="$source_dir" \
 DOCKER_BIN="$fake_docker" \
 FAKE_DOCKER_STATE_FILE="$state_file" \
 FAKE_DOCKER_LOG_FILE="$log_file" \
@@ -55,6 +58,9 @@ FAKE_DOCKER_LOG_FILE="$log_file" \
     "$application_uuid" "$service_name" 60 0 >/dev/null
 
 grep -Fq 'up -d --no-deps --force-recreate --no-build nginx' "$log_file"
+grep -Fq -- "--project-directory $source_dir -f $configuration_dir/docker-compose.yaml -f $source_dir/compose.yaml config --services" "$log_file"
+[[ -L "$source_dir/.env" ]]
+[[ $(readlink "$source_dir/.env") == "$configuration_dir/.env" ]]
 grep -qx after "$state_file"
 
 echo "Compose service redeployment tests passed."

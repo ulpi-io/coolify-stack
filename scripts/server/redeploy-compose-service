@@ -30,6 +30,10 @@ env_file="$configuration_dir/.env"
 [[ -f "$compose_file" ]] || die "Coolify persisted Compose file is missing: $compose_file"
 [[ -f "$env_file" ]] || die "Coolify persisted environment file is missing: $env_file"
 [[ -d "$project_dir" ]] || die "Compose project directory is missing: $project_dir"
+source_compose_file="$project_dir/compose.yaml"
+if [[ "$project_dir" != "$configuration_dir" ]]; then
+  [[ -f "$source_compose_file" ]] || die "staged repository Compose file is missing: $source_compose_file"
+fi
 if [[ "$project_dir" != "$configuration_dir" && ! -e "$project_dir/.env" ]]; then
   ln -s "$env_file" "$project_dir/.env"
 fi
@@ -41,6 +45,11 @@ compose=(
   --project-directory "$project_dir"
   -f "$compose_file"
 )
+if [[ "$project_dir" != "$configuration_dir" ]]; then
+  # Preserve Coolify's generated ingress/management labels, then overlay the
+  # selected service with the current repository definition.
+  compose+=(-f "$source_compose_file")
+fi
 
 "${compose[@]}" config --services | grep -Fxq "$service_name" ||
   die "service $service_name is not present in Coolify's persisted Compose configuration"
