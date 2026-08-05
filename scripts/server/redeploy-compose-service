@@ -75,9 +75,11 @@ non_target_before=$(project_containers | awk -F'|' -v service="$service_name" '$
 
 if [[ "$build_service" == 1 ]]; then
   available_memory_mb=$(awk '/^MemAvailable:/ {print int($2 / 1024)}' /proc/meminfo)
+  available_swap_mb=$(awk '/^SwapFree:/ {print int($2 / 1024)}' /proc/meminfo)
+  available_build_headroom_mb=$((available_memory_mb + available_swap_mb))
   available_disk_mb=$(df -Pm /var/lib/docker | awk 'NR == 2 {print $4}')
-  (( available_memory_mb >= 2048 )) ||
-    die "service build requires at least 2048 MiB available memory; found ${available_memory_mb} MiB"
+  (( available_build_headroom_mb >= 2048 )) ||
+    die "service build requires at least 2048 MiB combined available memory and free swap; found ${available_build_headroom_mb} MiB"
   (( available_disk_mb >= 4096 )) ||
     die "service build requires at least 4096 MiB free Docker disk; found ${available_disk_mb} MiB"
 fi
