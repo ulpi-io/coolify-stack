@@ -339,7 +339,7 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-04 — TeamToast Google Chat and Google sign-in
 
-- [ ] **Status: Cloud app configured; service-account key, Workspace delegation grant, and deployment remain — Core**
+- [ ] **Status: Cloud app and Workspace delegation configured; service-account key and deployment remain — Core**
 - Google Cloud project:
   - Name: `TeamToast Google Workspace`
   - Project ID: `high-comfort-504702-h4`
@@ -361,7 +361,8 @@ For each project, configure the consent screen, authorized domains, support/deve
 - Google Chat API and Admin SDK API are enabled. The Chat application is named `TeamToast`, uses the webhook above, and is restricted to `cip@opengrowthgroup.co` while testing.
 - Dedicated service account: `teamtoast-google-chat@high-comfort-504702-h4.iam.gserviceaccount.com`
   - Domain-wide delegation client ID: `101846717503923231570`
-  - Grant only `https://www.googleapis.com/auth/admin.directory.user.readonly` in Google Workspace Admin.
+  - Google Workspace Admin authorizes exactly one scope: `https://www.googleapis.com/auth/admin.directory.user.readonly`.
+  - The delegation is listed as `TeamToast` and was verified after authorization on 2026-08-06.
 - No persistent JSON key has been created yet. Obtain explicit approval before creating one, then store it only at `/data/coolify/secrets/teamtoast/google-chat-service-account.json` with mode `0600`; the recipe mounts that exact file read-only only into TeamToast API/worker services.
 - Save for deployment:
   - `GOOGLE_CHAT_PROJECT_NUMBER`
