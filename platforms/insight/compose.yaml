@@ -73,6 +73,9 @@ services:
       ULPI_BIND_PORT: "8080"
       ULPI_AUTH_SIGNING_KEY: ${ULPI_AUTH_SIGNING_KEY:?required}
       ULPI_BOOTSTRAP_ADMIN_TOKEN: ${ULPI_BOOTSTRAP_ADMIN_TOKEN:?required}
+      ULPI_OAUTH_GOOGLE_CLIENT_ID: ${ULPI_OAUTH_GOOGLE_CLIENT_ID:?required}
+      ULPI_OAUTH_GOOGLE_CLIENT_SECRET: ${ULPI_OAUTH_GOOGLE_CLIENT_SECRET:?required}
+      ULPI_OAUTH_REDIRECT_BASE: ${ULPI_OAUTH_REDIRECT_BASE:?required}
       ULPI_OAUTH_DASHBOARD_ORIGIN: ${APP_URL:?required}
     networks: [internal, shared]
     healthcheck:
@@ -104,11 +107,23 @@ services:
       context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
       dockerfile: apps/marketing/Dockerfile
       args:
-        NEXT_PUBLIC_SITE_URL: https://www.clavinci.com
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?required}
+        NEXT_PUBLIC_LEGAL_NAME: ${NEXT_PUBLIC_LEGAL_NAME:?required}
+        NEXT_PUBLIC_LEGAL_CONTACT: ${NEXT_PUBLIC_LEGAL_CONTACT:?required}
+        NEXT_PUBLIC_PRIVACY_CONTACT: ${NEXT_PUBLIC_PRIVACY_CONTACT:?required}
+        NEXT_PUBLIC_SECURITY_CONTACT: ${NEXT_PUBLIC_SECURITY_CONTACT:?required}
+        NEXT_PUBLIC_GOVERNING_LAW: ${NEXT_PUBLIC_GOVERNING_LAW:?required}
       secrets:
         - source: git_auth_token
           target: GIT_AUTH_TOKEN
     expose: ["3000"]
+    environment:
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?required}
+      NEXT_PUBLIC_LEGAL_NAME: ${NEXT_PUBLIC_LEGAL_NAME:?required}
+      NEXT_PUBLIC_LEGAL_CONTACT: ${NEXT_PUBLIC_LEGAL_CONTACT:?required}
+      NEXT_PUBLIC_PRIVACY_CONTACT: ${NEXT_PUBLIC_PRIVACY_CONTACT:?required}
+      NEXT_PUBLIC_SECURITY_CONTACT: ${NEXT_PUBLIC_SECURITY_CONTACT:?required}
+      NEXT_PUBLIC_GOVERNING_LAW: ${NEXT_PUBLIC_GOVERNING_LAW:?required}
     networks: [default]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]

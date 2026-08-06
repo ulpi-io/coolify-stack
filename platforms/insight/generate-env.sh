@@ -31,10 +31,19 @@ tmp=$(mktemp "$(dirname "$output")/.insight.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://app.clavinci.com
-INSIGHT_SOURCE_REF=34ac892e854d7b7df53743ba0df9ba269e901f79
+INSIGHT_SOURCE_REF=3005a926e54b7b3cc784310858fc649513e968b2
 GIT_AUTH_TOKEN=
 ULPI_AUTH_SIGNING_KEY=$(random_hex)
 ULPI_BOOTSTRAP_ADMIN_TOKEN=$(random_hex)
+ULPI_OAUTH_GOOGLE_CLIENT_ID=
+ULPI_OAUTH_GOOGLE_CLIENT_SECRET=
+ULPI_OAUTH_REDIRECT_BASE=https://api.clavinci.com
+NEXT_PUBLIC_SITE_URL=https://www.clavinci.com
+NEXT_PUBLIC_LEGAL_NAME=Open Growth Group INC
+NEXT_PUBLIC_LEGAL_CONTACT=hello@opengrowthgroup.co
+NEXT_PUBLIC_PRIVACY_CONTACT=hello@opengrowthgroup.co
+NEXT_PUBLIC_SECURITY_CONTACT=hello@opengrowthgroup.co
+NEXT_PUBLIC_GOVERNING_LAW=Delaware, USA
 EOF
 } > "$tmp"
 chmod 600 "$tmp"

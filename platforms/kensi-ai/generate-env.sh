@@ -36,6 +36,9 @@ GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
 MAIL_FROM_ADDRESS=no-reply@kensi.ai
 MAIL_FROM_NAME=Kensi AI
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URL=https://api.kensi.ai/auth/social/google/callback-web
 EOF
 } > "$tmp"
 chmod 600 "$tmp"

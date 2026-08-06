@@ -376,7 +376,7 @@ For each project, configure the consent screen, authorized domains, support/deve
   - `ULPI_OAUTH_GOOGLE_CLIENT_ID`
   - `ULPI_OAUTH_GOOGLE_CLIENT_SECRET`
   - `ULPI_OAUTH_REDIRECT_BASE=https://api.clavinci.com`
-  - `ULPI_OAUTH_DASHBOARD_ORIGIN=https://www.clavinci.com`
+  - `ULPI_OAUTH_DASHBOARD_ORIGIN=https://app.clavinci.com`
 - `api.clavinci.com` must resolve publicly and have valid TLS before OAuth testing.
 
 ### GOOGLE-08 — Record Cloud sign-in

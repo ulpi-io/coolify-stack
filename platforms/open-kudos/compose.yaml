@@ -38,7 +38,17 @@ x-laravel-env: &laravel-env
   MAIL_ENCRYPTION: "null"
   MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:?MAIL_FROM_ADDRESS is required}
   MAIL_FROM_NAME: ${MAIL_FROM_NAME:?MAIL_FROM_NAME is required}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
+  GOOGLE_CHAT_PROJECT_NUMBER: ${GOOGLE_CHAT_PROJECT_NUMBER:?GOOGLE_CHAT_PROJECT_NUMBER is required}
+  GOOGLE_CHAT_SERVICE_ACCOUNT_KEY_PATH: /run/secrets/google-chat-service-account.json
   LOG_CHANNEL: stderr
+
+x-api-volumes: &api-volumes
+  - type: bind
+    source: /data/coolify/secrets/teamtoast/google-chat-service-account.json
+    target: /run/secrets/google-chat-service-account.json
+    read_only: true
 
 x-api-image: &api-image
   build:
@@ -48,6 +58,7 @@ x-api-image: &api-image
       - source: git_auth_token
         target: GIT_AUTH_TOKEN
   environment: *laravel-env
+  volumes: *api-volumes
   networks: [internal, shared]
 services:
   migrate:
@@ -90,6 +101,7 @@ services:
         - source: git_auth_token
           target: GIT_AUTH_TOKEN
     environment: *laravel-env
+    volumes: *api-volumes
     networks: [internal, shared]
     depends_on:
       migrate:
@@ -103,6 +115,7 @@ services:
         - source: git_auth_token
           target: GIT_AUTH_TOKEN
     environment: *laravel-env
+    volumes: *api-volumes
     networks: [internal, shared]
     depends_on:
       migrate:
@@ -115,6 +128,7 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
         NEXT_PUBLIC_APP_URL: ${APP_URL:?required}
+        NEXT_PUBLIC_GOOGLE_CHAT_APP_URL: ${NEXT_PUBLIC_GOOGLE_CHAT_APP_URL:-}
       secrets:
         - source: git_auth_token
           target: GIT_AUTH_TOKEN
@@ -122,6 +136,7 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${API_PUBLIC_URL:?required}
+      NEXT_PUBLIC_GOOGLE_CHAT_APP_URL: ${NEXT_PUBLIC_GOOGLE_CHAT_APP_URL:-}
       API_URL: http://nginx
     networks: [internal]
 

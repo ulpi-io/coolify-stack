@@ -28,6 +28,7 @@ for generator in platforms/*/generate-env.sh; do
     plane) expected_app_url=https://pm.con.fyi ;;
     postiz) expected_app_url=https://post.con.fyi ;;
     con-fyi) expected_app_url=https://con.fyi ;;
+    insight) expected_app_url=https://app.clavinci.com ;;
     nudgra-oss) expected_app_url=https://ig.con.fyi ;;
     n8n) expected_app_url=https://workflow.con.fyi ;;
     twenty) expected_app_url=https://crm.con.fyi ;;
@@ -133,9 +134,10 @@ do
   }
 done
 
+domain_scan_paths=(README.md REPOSITORIES.md COOLIFY_IMPORT.md infrastructure platforms scripts)
+[[ -f DIGITALOCEAN_SERVER.md ]] && domain_scan_paths+=(DIGITALOCEAN_SERVER.md)
 if rg -n 'www\.(pm|post|ig|workflow|crm|buzz)\.con\.fyi' \
-  README.md REPOSITORIES.md COOLIFY_IMPORT.md DIGITALOCEAN_SERVER.md \
-  infrastructure platforms scripts >/dev/null; then
+  "${domain_scan_paths[@]}" >/dev/null; then
   echo "A retired www-prefixed con.fyi platform domain is still present" >&2
   exit 1
 fi
@@ -552,6 +554,23 @@ for slug in "${platforms[@]}"; do
     generator_args+=(--claude-token-file "$qm_validation_token_file" --resend-key-file "$qm_validation_resend_file")
   fi
   "platforms/$slug/generate-env.sh" "${generator_args[@]}" >/dev/null
+  case "$slug" in
+    kensi-ai)
+      printf '%s\n' \
+        'GOOGLE_CLIENT_ID=validation-only.apps.googleusercontent.com' \
+        'GOOGLE_CLIENT_SECRET=validation-only' >> "$env_file"
+      ;;
+    open-kudos)
+      printf '%s\n' \
+        'GOOGLE_CLIENT_ID=validation-only.apps.googleusercontent.com' \
+        'GOOGLE_CLIENT_SECRET=validation-only' >> "$env_file"
+      ;;
+    insight)
+      printf '%s\n' \
+        'ULPI_OAUTH_GOOGLE_CLIENT_ID=validation-only.apps.googleusercontent.com' \
+        'ULPI_OAUTH_GOOGLE_CLIENT_SECRET=validation-only' >> "$env_file"
+      ;;
+  esac
   [[ $(stat -f '%Lp' "$env_file" 2>/dev/null || stat -c '%a' "$env_file") = 600 ]] || {
     echo "$env_file is not mode 0600" >&2
     exit 1
