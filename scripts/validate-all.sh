@@ -211,9 +211,9 @@ for clavinci_router in apex-http apex-https www-http api-http; do
     exit 1
   }
 done
-# Match the literal nginx variable in the redirect response.
+# Match the escaped nginx variable in the inline Compose config.
 # shellcheck disable=SC2016
-grep -Fq 'return 301 https://www.clavinci.com$request_uri;' platforms/insight/apex-redirect.conf || {
+grep -Fq 'return 301 https://www.clavinci.com$$request_uri;' platforms/insight/compose.yaml || {
   echo "Clavinci apex must permanently redirect to canonical www HTTPS" >&2
   exit 1
 }

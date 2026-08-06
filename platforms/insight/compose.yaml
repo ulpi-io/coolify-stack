@@ -181,7 +181,21 @@ networks:
 
 configs:
   apex_redirect:
-    file: ./apex-redirect.conf
+    content: |
+      server {
+          listen 8080;
+          server_name _;
+
+          location = /healthz {
+              access_log off;
+              default_type text/plain;
+              return 200 "ok\n";
+          }
+
+          location / {
+              return 301 https://www.clavinci.com$$request_uri;
+          }
+      }
 
 secrets:
   git_auth_token:
