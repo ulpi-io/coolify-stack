@@ -31,6 +31,7 @@ tmp=$(mktemp "$(dirname "$output")/.lokei.env.XXXXXX")
   cat "$shared_env"
   cat <<EOF
 APP_URL=https://www.lokei.dev
+AUTH_URL=https://www.lokei.dev
 API_PUBLIC_URL=https://api.lokei.dev
 RELAY_DOMAIN=relay.lokei.dev
 GIT_AUTH_TOKEN=

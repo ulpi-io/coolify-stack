@@ -138,7 +138,10 @@ services:
     expose: ["3000"]
     environment:
       NODE_ENV: production
+      AUTH_URL: ${AUTH_URL:?AUTH_URL is required}
       AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       LOKEI_API_URL: http://nginx/api/v1
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required}
       NEXT_PUBLIC_BASE_URL: ${APP_URL:?APP_URL is required}
