@@ -296,9 +296,15 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-02 — SocialReply sign-in and Google Sheets
 
-- [ ] **Status: Create now; test after deployment — Core**
-- Project/client name suggestion: `SocialReply Auth and Sheets`
-- Enable Google Sheets API.
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Google Cloud project ID: `socialreply-auth-sheets`
+- OAuth app/client name: `SocialReply Auth and Sheets`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Homepage: `https://www.socialreply.ai/`
+  - Privacy policy: `https://www.socialreply.ai/en/legal/privacy`
+  - Terms of service: `https://www.socialreply.ai/en/legal/terms`
+- Google Sheets API is enabled.
 - Authorized redirect URIs:
   - `https://api.socialreply.ai/api/v1/auth/google/callback`
   - `https://api.socialreply.ai/api/v1/integrations/google_sheets/oauth/callback`
@@ -312,12 +318,16 @@ For each project, configure the consent screen, authorized domains, support/deve
   - `GOOGLE_CLIENT_SECRET`
   - `GOOGLE_REDIRECT_URI`
   - `GOOGLE_SHEETS_REDIRECT_URI`
+- All four variables are saved in Coolify. Only the SocialReply resource was redeployed; its app, web, nginx, Horizon, scheduler, Reverb, and redirect services were verified healthy, and the public web/API/WebSocket health endpoints returned 200.
 
 ### GOOGLE-03 — SocialReply YouTube
 
-- [ ] **Status: Create now; test after deployment — Core**
-- Use a separate project/client or at minimum a separate OAuth client and quota boundary from GOOGLE-02.
-- Enable YouTube Data API v3.
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Separate Google Cloud project ID: `socialreply-youtube`
+- OAuth app/client name: `SocialReply YouTube`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding uses the same verified SocialReply homepage, privacy policy, and terms URLs as GOOGLE-02.
+- YouTube Data API v3 is enabled.
 - Authorized redirect URI:
   - `https://api.socialreply.ai/api/v1/channel-accounts/youtube/callback`
 - Scope:
@@ -325,11 +335,20 @@ For each project, configure the consent screen, authorized domains, support/deve
 - Save for deployment:
   - `YOUTUBE_CLIENT_ID`
   - `YOUTUBE_CLIENT_SECRET`
+- Both variables are saved in Coolify and were included in the scoped SocialReply deployment documented under GOOGLE-02.
 
 ### GOOGLE-04 — TeamToast Google Chat and Google sign-in
 
-- [ ] **Status: Create — Core**
-- Create one TeamToast Google Cloud project containing:
+- [ ] **Status: Cloud app configured; service-account key, Workspace delegation grant, and deployment remain — Core**
+- Google Cloud project:
+  - Name: `TeamToast Google Workspace`
+  - Project ID: `high-comfort-504702-h4`
+  - Project number: `1023476457352`
+- The OAuth app/client is named `TeamToast Google Sign-In`, remains **Internal**, and uses:
+  - Homepage: `https://www.teamtoast.ai/`
+  - Privacy policy: `https://www.teamtoast.ai/privacy`
+  - Terms of service: `https://www.teamtoast.ai/terms`
+- The project contains:
   - a Google Chat application;
   - a service account;
   - Google Workspace domain-wide delegation for required Directory access;
@@ -339,6 +358,11 @@ For each project, configure the consent screen, authorized domains, support/deve
 - Google Chat webhook:
   - `https://api.teamtoast.ai/api/google-chat/webhook`
 - Required capabilities/scopes include `chat.bot` and `admin.directory.user.readonly`.
+- Google Chat API and Admin SDK API are enabled. The Chat application is named `TeamToast`, uses the webhook above, and is restricted to `cip@opengrowthgroup.co` while testing.
+- Dedicated service account: `teamtoast-google-chat@high-comfort-504702-h4.iam.gserviceaccount.com`
+  - Domain-wide delegation client ID: `101846717503923231570`
+  - Grant only `https://www.googleapis.com/auth/admin.directory.user.readonly` in Google Workspace Admin.
+- No persistent JSON key has been created yet. Obtain explicit approval before creating one, then store it only at `/data/coolify/secrets/teamtoast/google-chat-service-account.json` with mode `0600`; the recipe mounts that exact file read-only only into TeamToast API/worker services.
 - Save for deployment:
   - `GOOGLE_CHAT_PROJECT_NUMBER`
   - service-account JSON mounted as a read-only file referenced by `GOOGLE_CHAT_SERVICE_ACCOUNT_KEY_PATH`
@@ -346,10 +370,12 @@ For each project, configure the consent screen, authorized domains, support/deve
   - `GOOGLE_CLIENT_SECRET`
   - `NEXT_PUBLIC_GOOGLE_CHAT_APP_URL`
 - Never paste service-account JSON into Compose, Git, or an ordinary environment-value field.
+- Do not deploy TeamToast until the protected key file exists, the domain-wide delegation grant is complete, and `NEXT_PUBLIC_GOOGLE_CHAT_APP_URL` is known.
 
 ### GOOGLE-05 — Plane sign-in
 
-- [ ] **Status: Create — Core**
+- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
+- The requested project ID `confyi-plane-google` is already globally occupied outside this account; do not create or modify an unrelated project.
 - Authorized redirect URIs:
   - `https://pm.con.fyi/auth/google/callback`
   - `https://pm.con.fyi/auth/mobile/google/callback/`
@@ -359,17 +385,32 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-06 — Kensi sign-in
 
-- [ ] **Status: Create — Core**
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Google Cloud project ID: `galvanized-math-504702-n5`
+- OAuth app/client name: `Kensi Google Sign-In`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Homepage: `https://www.kensi.ai/`
+  - Privacy policy: `https://www.kensi.ai/en/privacy-policy`
+  - Terms of service: `https://www.kensi.ai/en/terms`
 - Authorized redirect URI:
   - `https://api.kensi.ai/auth/social/google/callback-web`
 - Save for deployment:
   - `GOOGLE_CLIENT_ID`
   - `GOOGLE_CLIENT_SECRET`
   - `GOOGLE_REDIRECT_URL`
+- The three variables are saved in Coolify. Only Kensi was redeployed; all five containers were recreated, app/nginx were healthy, and the public API returned 200.
 
 ### GOOGLE-07 — Clavinci sign-in
 
-- [ ] **Status: Create after DNS — Core**
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Google Cloud project ID: `summer-gadget-504702-s7`
+- OAuth app/client name: `Clavinci Google Sign-In`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Homepage: `https://www.clavinci.com/`
+  - Privacy policy: `https://www.clavinci.com/privacy`
+  - Terms of service: `https://www.clavinci.com/terms`
 - Authorized redirect URI:
   - `https://api.clavinci.com/api/v1/auth/google/callback`
 - Save for deployment:
@@ -377,11 +418,13 @@ For each project, configure the consent screen, authorized domains, support/deve
   - `ULPI_OAUTH_GOOGLE_CLIENT_SECRET`
   - `ULPI_OAUTH_REDIRECT_BASE=https://api.clavinci.com`
   - `ULPI_OAUTH_DASHBOARD_ORIGIN=https://app.clavinci.com`
-- `api.clavinci.com` must resolve publicly and have valid TLS before OAuth testing.
+- The OAuth variables and legal operator configuration are saved in Coolify. Only Clavinci was deployed; redirect, marketing, dashboard, and API containers were verified healthy, and the homepage, legal pages, dashboard, and API readiness endpoint all returned 200.
+- The legal pages visibly identify `Open Growth Group INC`, `Delaware, USA`, and `hello@opengrowthgroup.co`, with no visible incomplete-launch warning.
 
 ### GOOGLE-08 — Record Cloud sign-in
 
-- [ ] **Status: Create — Core**
+- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
+- The requested project ID `record-cloud-google` is already globally occupied outside this account; do not create or modify an unrelated project.
 - Authorized redirect URI:
   - `https://api.record.con.fyi/api/auth/callback/google`
 - Scopes: `openid`, `profile`, `email`.
@@ -391,7 +434,8 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-09 — Lokei sign-in
 
-- [ ] **Status: Create — Core**
+- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
+- The requested project ID `lokei-google-auth` is already globally occupied outside this account; do not create or modify an unrelated project.
 - Authorized redirect URI:
   - `https://www.lokei.dev/api/auth/callback/google`
 - Scopes: `openid`, `profile`, `email`.
