@@ -196,14 +196,13 @@ grep -Fq 'APP_URL=https://app.clavinci.com' platforms/insight/generate-env.sh ||
   echo "Clavinci dashboard OAuth origin must use app.clavinci.com" >&2
   exit 1
 }
-grep -Eq '^INSIGHT_SOURCE_REF=[0-9a-f]{40}$' platforms/insight/generate-env.sh || {
-  echo "Clavinci source must be pinned to an exact commit" >&2
+insight_source_refs=$(sed -nE 's|^[[:space:]]+context: https://github.com/ulpi-io/insight\.git#([0-9a-f]{40})$|\1|p' platforms/insight/compose.yaml | sort -u)
+[[ $(wc -l <<<"$insight_source_refs" | tr -d ' ') = 1 ]] || {
+  echo "Clavinci builds must use one literal pinned source commit" >&2
   exit 1
 }
-# Match the literal Compose-time source-ref interpolation expression.
-# shellcheck disable=SC2016
-grep -Fq 'https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}' platforms/insight/compose.yaml || {
-  echo "Clavinci builds must use the pinned source commit" >&2
+[[ $(grep -Fc "context: https://github.com/ulpi-io/insight.git#$insight_source_refs" platforms/insight/compose.yaml) = 3 ]] || {
+  echo "Every Clavinci build must use the same literal pinned source commit" >&2
   exit 1
 }
 for clavinci_router in apex-http apex-https www-http api-http; do

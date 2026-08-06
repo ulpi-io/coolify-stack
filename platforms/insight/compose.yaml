@@ -60,7 +60,7 @@ services:
     labels:
       traefik.docker.network: ${COOLIFY_RESOURCE_UUID:-}
     build:
-      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
+      context: https://github.com/ulpi-io/insight.git#3005a926e54b7b3cc784310858fc649513e968b2
       dockerfile: apps/api/Dockerfile
       secrets:
         - source: git_auth_token
@@ -104,7 +104,7 @@ services:
       traefik.http.routers.clavinci-marketing-https.tls.certresolver: letsencrypt
       traefik.http.services.clavinci-marketing.loadbalancer.server.port: "3000"
     build:
-      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
+      context: https://github.com/ulpi-io/insight.git#3005a926e54b7b3cc784310858fc649513e968b2
       dockerfile: apps/marketing/Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?required}
@@ -152,7 +152,7 @@ services:
       traefik.http.routers.clavinci-dashboard-https.tls.certresolver: letsencrypt
       traefik.http.services.clavinci-dashboard.loadbalancer.server.port: "8080"
     build:
-      context: https://github.com/ulpi-io/insight.git#${INSIGHT_SOURCE_REF:?required}
+      context: https://github.com/ulpi-io/insight.git#3005a926e54b7b3cc784310858fc649513e968b2
       dockerfile: apps/dashboard/Dockerfile
       secrets:
         - source: git_auth_token
