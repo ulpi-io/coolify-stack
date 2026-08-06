@@ -373,15 +373,28 @@ For each project, configure the consent screen, authorized domains, support/deve
 - Never paste service-account JSON into Compose, Git, or an ordinary environment-value field.
 - Do not deploy TeamToast until the protected key file exists, the domain-wide delegation grant is complete, and `NEXT_PUBLIC_GOOGLE_CHAT_APP_URL` is known.
 
-### GOOGLE-05 — Plane sign-in
+### GOOGLE-05 — ConFYI PM sign-in
 
-- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
-- The requested project ID `confyi-plane-google` is already globally occupied outside this account; do not create or modify an unrelated project.
+- [x] **Status: Configured on 2026-08-06 — Core**
+- Google Cloud project:
+  - Name: `ConFYI PM Google Sign-In`
+  - Project ID: `flawless-parity-504706-k8`
+  - Project number: `1024527498198`
+- OAuth app/client name: `ConFYI PM Google Sign-In`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Application name: `ConFYI PM`
+  - Homepage: `https://con.fyi/con-fyi-pm`
+  - Privacy policy: `https://con.fyi/con-fyi-pm/privacy-policy/`
+  - Terms of service: `https://con.fyi/con-fyi-pm/terms-of-service/`
+  - Authorized domain: `con.fyi`
 - Authorized redirect URIs:
   - `https://pm.con.fyi/auth/google/callback`
+  - `https://pm.con.fyi/auth/google/callback/`
   - `https://pm.con.fyi/auth/mobile/google/callback/`
 - Scopes: `openid`, `profile`, `email`.
-- Enter the client ID and secret through Plane `/god-mode`; they are not stack Compose variables.
+- The client ID and secret are saved through Plane `/god-mode`; they are not stack Compose variables.
+- Plane v1.3.0 already had `IS_GITEA_ENABLED`, so its configuration initializer skipped creating the missing `IS_GOOGLE_ENABLED` row even though the UI PATCH returned 200. The missing Plane-owned row was created with value `1`; the Google checkbox and persisted flag were then verified enabled. No shared service or Plane stack redeployment was needed.
 - Reference: [Plane Google OAuth setup](https://developers.plane.so/self-hosting/govern/google-oauth).
 
 ### GOOGLE-06 — Kensi sign-in
@@ -424,19 +437,41 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-08 — Record Cloud sign-in
 
-- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
-- The requested project ID `record-cloud-google` is already globally occupied outside this account; do not create or modify an unrelated project.
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Google Cloud project:
+  - Name: `Record Cloud Google Sign-In`
+  - Project ID: `molten-thought-504709-u4`
+- OAuth app/client name: `Record Cloud Google Sign-In`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Application name: `Record Cloud`
+  - Homepage: `https://www.record.con.fyi/`
+  - Privacy policy: `https://www.record.con.fyi/privacy`
+  - Terms of service: `https://www.record.con.fyi/terms`
+  - Authorized domain: `con.fyi`
 - Authorized redirect URI:
   - `https://api.record.con.fyi/api/auth/callback/google`
 - Scopes: `openid`, `profile`, `email`.
 - Save for deployment:
   - `GOOGLE_CLIENT_ID`
   - `GOOGLE_CLIENT_SECRET`
+- Both production variables are saved exactly once in Coolify. The Record Cloud Compose contract was corrected to pass them into the API runtime, and only Record Cloud was redeployed from that fix.
+- The new web and API containers were verified healthy, the API container received exactly one of each OAuth key without printing the values, and the public web and API health endpoints returned 200.
 
 ### GOOGLE-09 — Lokei sign-in
 
-- [ ] **Status: Awaiting approval to use a Google-generated project ID — Core**
-- The requested project ID `lokei-google-auth` is already globally occupied outside this account; do not create or modify an unrelated project.
+- [x] **Status: Configured and deployed on 2026-08-06 — Core**
+- Google Cloud project:
+  - Name: `Lokei Google Sign-In`
+  - Project ID: `fabled-badge-504709-c1`
+- OAuth app/client name: `Lokei Google Sign-In`
+- Audience remains **Internal**; the app was not published or made External.
+- Branding:
+  - Application name: `Lokei`
+  - Homepage: `https://www.lokei.dev/en`
+  - Privacy policy: `https://www.lokei.dev/en/privacy-policy`
+  - Terms of service: `https://www.lokei.dev/en/terms-and-conditions`
+  - Authorized domain: `lokei.dev`
 - Authorized redirect URI:
   - `https://www.lokei.dev/api/auth/callback/google`
 - Scopes: `openid`, `profile`, `email`.
@@ -444,6 +479,8 @@ For each project, configure the consent screen, authorized domains, support/deve
   - `AUTH_URL=https://www.lokei.dev`
   - `GOOGLE_CLIENT_ID`
   - `GOOGLE_CLIENT_SECRET`
+- All three production variables are saved exactly once in Coolify. The Lokei Compose contract was corrected to pass them into the web authentication runtime, and only Lokei was redeployed from that fix.
+- All six replacement containers were running, the API and relay healthchecks were healthy, the web runtime received exactly one of each required OAuth key without printing values, and the public web and API health endpoints returned 200.
 
 ---
 
