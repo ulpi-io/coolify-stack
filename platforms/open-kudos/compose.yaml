@@ -45,10 +45,7 @@ x-laravel-env: &laravel-env
   LOG_CHANNEL: stderr
 
 x-api-volumes: &api-volumes
-  - type: bind
-    source: /data/coolify/secrets/teamtoast/google-chat-service-account.json
-    target: /run/secrets/google-chat-service-account.json
-    read_only: true
+  - /data/coolify/secrets/teamtoast/google-chat-service-account.json:/run/secrets/google-chat-service-account.json:ro
 
 x-api-image: &api-image
   build:
