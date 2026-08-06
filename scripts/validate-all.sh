@@ -25,6 +25,7 @@ for generator in platforms/*/generate-env.sh; do
   slug=$(basename "$(dirname "$generator")")
   app_url=$(grep '^APP_URL=' "$generator" | head -1 | cut -d= -f2-)
   case "$slug" in
+    open-kudos) expected_app_url=https://api.teamtoast.ai ;;
     plane) expected_app_url=https://pm.con.fyi ;;
     postiz) expected_app_url=https://post.con.fyi ;;
     con-fyi) expected_app_url=https://con.fyi ;;
@@ -54,6 +55,11 @@ for generator in platforms/*/generate-env.sh; do
     exit 1
   }
 done
+
+grep -Fq 'WEB_PUBLIC_URL=https://www.teamtoast.ai' platforms/open-kudos/generate-env.sh || {
+  echo "TeamToast must use www.teamtoast.ai as its canonical frontend origin" >&2
+  exit 1
+}
 
 grep -Fq '{"name":"marketing","domain":"https://www.clavinci.com"},{"name":"dashboard","domain":"https://app.clavinci.com"},{"name":"api","domain":"https://api.clavinci.com"}' scripts/create-resources.sh || {
   echo "Clavinci marketing/dashboard/API domain mapping is missing" >&2

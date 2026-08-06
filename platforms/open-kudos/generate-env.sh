@@ -30,7 +30,8 @@ tmp=$(mktemp "$(dirname "$output")/.open-kudos.env.XXXXXX")
 {
   cat "$shared_env"
   cat <<EOF
-APP_URL=https://www.teamtoast.ai
+APP_URL=https://api.teamtoast.ai
+WEB_PUBLIC_URL=https://www.teamtoast.ai
 API_PUBLIC_URL=https://api.teamtoast.ai
 GIT_AUTH_TOKEN=
 APP_KEY=base64:$(random_base64)
