@@ -282,6 +282,8 @@ For each project, configure the consent screen, authorized domains, support/deve
   - [x] My Business Account Management API (`mybusinessaccountmanagement.googleapis.com`)
   - [x] My Business Business Information API (`mybusinessbusinessinformation.googleapis.com`)
   - [ ] Google My Business API v4 (`mybusiness.googleapis.com`) for `accounts.locations.localPosts`; this legacy service is access-gated and is not exposed in this project's API Library. Request/obtain Google Business Profile API access and non-zero quota before treating local-post publishing as complete.
+- The access request was not submitted on 2026-08-06 because the signed-in Open Growth Group account's Business Profile Manager reports **no businesses**. Google's current prerequisites require the applicant to manage a verified, active Business Profile for at least 60 days, have a website representing that profile, and submit from an email that owns or manages it. See [Google's Business Profile API prerequisites](https://developers.google.com/my-business/content/prereqs#request-access).
+- To unblock local-post publishing, first add and verify an eligible Open Growth Group Business Profile under the applicant account, keep it active for 60+ days, then submit **Application for Basic API Access** for project number `806355414137`. After Google approves the project and grants non-zero quota, enable `mybusiness.googleapis.com` and re-test `accounts.locations.localPosts`.
 - Authorized redirect URIs saved:
   - `https://post.con.fyi/integrations/social/youtube`
   - `https://post.con.fyi/integrations/social/gmb`
@@ -339,7 +341,7 @@ For each project, configure the consent screen, authorized domains, support/deve
 
 ### GOOGLE-04 — TeamToast Google Chat and Google sign-in
 
-- [ ] **Status: Cloud app and Workspace delegation configured; service-account key and deployment remain — Core**
+- [x] **Status: Google configuration and TeamToast deployment completed on 2026-08-06; public API DNS remains an external runtime blocker — Core**
 - Google Cloud project:
   - Name: `TeamToast Google Workspace`
   - Project ID: `high-comfort-504702-h4`
@@ -363,15 +365,19 @@ For each project, configure the consent screen, authorized domains, support/deve
   - Domain-wide delegation client ID: `101846717503923231570`
   - Google Workspace Admin authorizes exactly one scope: `https://www.googleapis.com/auth/admin.directory.user.readonly`.
   - The delegation is listed as `TeamToast` and was verified after authorization on 2026-08-06.
-- No persistent JSON key has been created yet. Obtain explicit approval before creating one, then store it only at `/data/coolify/secrets/teamtoast/google-chat-service-account.json` with mode `0600`; the recipe mounts that exact file read-only only into TeamToast API/worker services.
-- Save for deployment:
+- One persistent JSON key was created with explicit approval and installed only at `/data/coolify/secrets/teamtoast/google-chat-service-account.json`. The host file is owner-only (`0400`, numeric owner `82:82`, matching TeamToast's `www-data` runtime), and the recipe bind-mounts it read-only at `/run/secrets/google-chat-service-account.json` in TeamToast's migrate, API, worker, and scheduler services. The live app, worker, and scheduler each verified the expected project, service-account email, and private-key presence without printing the key.
+- The restricted Chat app was installed for `cip@opengrowthgroup.co` only and was not published. Verified launch URL:
+  - `https://chat.google.com/u/0/app/chat/nnmI5KAAAAE`
+- Saved exactly once in TeamToast's Coolify production environment:
   - `GOOGLE_CHAT_PROJECT_NUMBER`
   - service-account JSON mounted as a read-only file referenced by `GOOGLE_CHAT_SERVICE_ACCOUNT_KEY_PATH`
   - `GOOGLE_CLIENT_ID`
   - `GOOGLE_CLIENT_SECRET`
   - `NEXT_PUBLIC_GOOGLE_CHAT_APP_URL`
+- Google OAuth now has exactly one enabled client secret. The deployed secret matched the downloaded replacement by SHA-256 without printing either value; all temporary or obsolete secrets created during setup were disabled and deleted.
+- The live TeamToast OAuth start route generated the expected Google Accounts host, client ID, and exact callback `https://api.teamtoast.ai/api/auth/google/callback`. The compiled web build contains the verified Chat launch URL. TeamToast's app, worker, and scheduler are healthy; web and the internal API health route returned 200. Only TeamToast was redeployed.
+- `api.teamtoast.ai` still returns no DNS answer from the server resolver, `1.1.1.1`, or `8.8.8.8`. The local Traefik route returns 200, but Google cannot reach the OAuth callback or Chat webhook until public DNS is added. Do not claim external OAuth or Chat delivery as end-to-end verified before that DNS record resolves with valid TLS.
 - Never paste service-account JSON into Compose, Git, or an ordinary environment-value field.
-- Do not deploy TeamToast until the protected key file exists, the domain-wide delegation grant is complete, and `NEXT_PUBLIC_GOOGLE_CHAT_APP_URL` is known.
 
 ### GOOGLE-05 — ConFYI PM sign-in
 
