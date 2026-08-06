@@ -12,6 +12,7 @@ ssh_key=${COOLIFY_SSH_KEY:-}
 mode=""
 app_slug=""
 env_file=""
+copy_live_specs=()
 deploy_after_update=0
 allow_empty=0
 token_name=ogg-coolify-stack-env-update
@@ -25,15 +26,20 @@ usage() {
 Usage:
   scripts/update-app-env.sh --check --app SLUG --env-file PATH
   scripts/update-app-env.sh --apply --app SLUG --env-file PATH --ssh-key PATH [--deploy]
+  scripts/update-app-env.sh --apply --app SLUG --copy-live TARGET=SOURCE [--copy-live TARGET=SOURCE ...] --ssh-key PATH [--deploy]
 
 Adds or updates only the keys listed in a mode-0600 env file. Existing keys not
-listed in that file are preserved. Values are never printed.
+listed in that file are preserved. Alternatively, --copy-live copies an existing
+production variable to another key in the same app without exposing its value.
+Values are never printed.
 
 Options:
   --check           Validate the input file and app slug without contacting Coolify.
   --apply           Upsert the listed production environment variables in Coolify.
   --app SLUG        Target one existing stack, for example postiz or kensi-ai.
   --env-file PATH   File containing KEY=value lines. Blank lines and comments are allowed.
+  --copy-live T=S   Copy production key SOURCE to TARGET in the same app. Repeatable;
+                    supported only with --apply and mutually exclusive with --env-file.
   --ssh-key PATH    SSH private key used for the Coolify host.
   --host HOST       Coolify server SSH host (default: 68.183.135.86).
   --allow-empty     Permit KEY= entries that intentionally clear a value.
@@ -56,6 +62,7 @@ while (($#)); do
     --apply) mode=apply; shift ;;
     --app) [[ $# -ge 2 ]] || die "--app needs a slug"; app_slug=$2; shift 2 ;;
     --env-file) [[ $# -ge 2 ]] || die "--env-file needs a path"; env_file=$2; shift 2 ;;
+    --copy-live) [[ $# -ge 2 ]] || die "--copy-live needs TARGET=SOURCE"; copy_live_specs+=("$2"); shift 2 ;;
     --ssh-key) [[ $# -ge 2 ]] || die "--ssh-key needs a path"; ssh_key=$2; shift 2 ;;
     --host) [[ $# -ge 2 ]] || die "--host needs a value"; coolify_host=$2; shift 2 ;;
     --allow-empty) allow_empty=1; shift ;;
@@ -67,7 +74,8 @@ done
 
 [[ -n "$mode" ]] || { usage; exit 2; }
 [[ -n "$app_slug" ]] || die "--app is required"
-[[ -n "$env_file" ]] || die "--env-file is required"
+[[ -n "$env_file" || ${#copy_live_specs[@]} -gt 0 ]] || die "--env-file or --copy-live is required"
+[[ -z "$env_file" || ${#copy_live_specs[@]} -eq 0 ]] || die "--env-file and --copy-live are mutually exclusive"
 [[ $deploy_after_update -eq 0 || "$mode" == apply ]] || die "--deploy requires --apply"
 
 # slug|Coolify application name
@@ -104,39 +112,25 @@ for resource_spec in "${resource_specs[@]}"; do
 done
 [[ -n "$resource_name" ]] || die "unknown app slug: $app_slug"
 
-[[ -f "$env_file" && ! -L "$env_file" ]] || die "--env-file must be a regular, non-symlink file"
-env_file_mode=$(stat -f '%Lp' "$env_file" 2>/dev/null || stat -c '%a' "$env_file")
-[[ "$env_file_mode" == 600 ]] || die "--env-file must have mode 0600 (run: chmod 600 '$env_file')"
+env_payload=""
+copy_specs_json='[]'
 
-invalid_lines=$(awk '
-  {
-    line = $0
-    sub(/\r$/, "", line)
-  }
-  line ~ /^[[:space:]]*($|#)/ { next }
-  line !~ /^[A-Za-z_][A-Za-z0-9_]*=/ { print NR }
-' "$env_file" | paste -sd, -)
-[[ -z "$invalid_lines" ]] || die "invalid KEY=value syntax on line(s): $invalid_lines"
+if [[ -n "$env_file" ]]; then
+  [[ -f "$env_file" && ! -L "$env_file" ]] || die "--env-file must be a regular, non-symlink file"
+  env_file_mode=$(stat -f '%Lp' "$env_file" 2>/dev/null || stat -c '%a' "$env_file")
+  [[ "$env_file_mode" == 600 ]] || die "--env-file must have mode 0600 (run: chmod 600 '$env_file')"
 
-keys=$(awk '
-  {
-    line = $0
-    sub(/\r$/, "", line)
-  }
-  line ~ /^[[:space:]]*($|#)/ { next }
-  {
-    key = line
-    sub(/=.*/, "", key)
-    print key
-  }
-' "$env_file")
-[[ -n "$keys" ]] || die "--env-file contains no environment variables"
+  invalid_lines=$(awk '
+    {
+      line = $0
+      sub(/\r$/, "", line)
+    }
+    line ~ /^[[:space:]]*($|#)/ { next }
+    line !~ /^[A-Za-z_][A-Za-z0-9_]*=/ { print NR }
+  ' "$env_file" | paste -sd, -)
+  [[ -z "$invalid_lines" ]] || die "invalid KEY=value syntax on line(s): $invalid_lines"
 
-duplicate_keys=$(printf '%s\n' "$keys" | sort | uniq -d | paste -sd, -)
-[[ -z "$duplicate_keys" ]] || die "duplicate key(s) in --env-file: $duplicate_keys"
-
-if [[ $allow_empty -eq 0 ]]; then
-  empty_keys=$(awk '
+  keys=$(awk '
     {
       line = $0
       sub(/\r$/, "", line)
@@ -145,45 +139,81 @@ if [[ $allow_empty -eq 0 ]]; then
     {
       key = line
       sub(/=.*/, "", key)
-      value = substr(line, index(line, "=") + 1)
-      if (length(value) == 0) {
-        print key
-      }
+      print key
     }
-  ' "$env_file" | paste -sd, -)
-  [[ -z "$empty_keys" ]] || die "empty value(s) require --allow-empty: $empty_keys"
-fi
+  ' "$env_file")
+  [[ -n "$keys" ]] || die "--env-file contains no environment variables"
 
-command -v jq >/dev/null 2>&1 || die "jq is required"
+  duplicate_keys=$(printf '%s\n' "$keys" | sort | uniq -d | paste -sd, -)
+  [[ -z "$duplicate_keys" ]] || die "duplicate key(s) in --env-file: $duplicate_keys"
 
-env_payload=$(jq -Rn '
-  {
-    data: [
-      inputs
-      | sub("\r$"; "")
-      | select(test("^[[:space:]]*(#|$)") | not)
-      | capture("^(?<key>[A-Za-z_][A-Za-z0-9_]*)=(?<value>.*)$")
-      | {
-          key: .key,
-          value: .value,
-          is_preview: false,
-          is_literal: false,
-          is_multiline: false,
-          is_shown_once: (.key | test("PASSWORD|SECRET|PRIVATE_KEY|ACCESS_KEY|API_KEY|AUTH_TOKEN|CLIENT_SECRET|SIGNING_KEY|WEBHOOK_SECRET"; "i")),
-          is_runtime: true,
-          is_buildtime: true,
-          comment: "Managed by update-app-env.sh"
+  if [[ $allow_empty -eq 0 ]]; then
+    empty_keys=$(awk '
+      {
+        line = $0
+        sub(/\r$/, "", line)
+      }
+      line ~ /^[[:space:]]*($|#)/ { next }
+      {
+        key = line
+        sub(/=.*/, "", key)
+        value = substr(line, index(line, "=") + 1)
+        if (length(value) == 0) {
+          print key
         }
-    ]
-  }
-' "$env_file")
-key_count=$(jq '.data | length' <<<"$env_payload")
-target_keys_json=$(jq '[.data[].key]' <<<"$env_payload")
-key_list=$(jq -r '.data[].key' <<<"$env_payload" | paste -sd, -)
+      }
+    ' "$env_file" | paste -sd, -)
+    [[ -z "$empty_keys" ]] || die "empty value(s) require --allow-empty: $empty_keys"
+  fi
 
-if [[ "$mode" == check ]]; then
-  echo "CHECK PASSED: $key_count key(s) for $app_slug ($key_list); no remote changes made."
-  exit 0
+  command -v jq >/dev/null 2>&1 || die "jq is required"
+
+  env_payload=$(jq -Rn '
+    {
+      data: [
+        inputs
+        | sub("\r$"; "")
+        | select(test("^[[:space:]]*(#|$)") | not)
+        | capture("^(?<key>[A-Za-z_][A-Za-z0-9_]*)=(?<value>.*)$")
+        | {
+            key: .key,
+            value: .value,
+            is_preview: false,
+            is_literal: false,
+            is_multiline: false,
+            is_shown_once: (.key | test("PASSWORD|SECRET|PRIVATE_KEY|ACCESS_KEY|API_KEY|AUTH_TOKEN|CLIENT_SECRET|SIGNING_KEY|WEBHOOK_SECRET"; "i")),
+            is_runtime: true,
+            is_buildtime: true,
+            comment: "Managed by update-app-env.sh"
+          }
+      ]
+    }
+  ' "$env_file")
+  key_count=$(jq '.data | length' <<<"$env_payload")
+  target_keys_json=$(jq '[.data[].key]' <<<"$env_payload")
+  key_list=$(jq -r '.data[].key' <<<"$env_payload" | paste -sd, -)
+
+  if [[ "$mode" == check ]]; then
+    echo "CHECK PASSED: $key_count key(s) for $app_slug ($key_list); no remote changes made."
+    exit 0
+  fi
+else
+  [[ "$mode" == apply ]] || die "--copy-live is supported only with --apply"
+  [[ $allow_empty -eq 0 ]] || die "--allow-empty is not supported with --copy-live"
+  command -v jq >/dev/null 2>&1 || die "jq is required"
+
+  for copy_spec in "${copy_live_specs[@]}"; do
+    [[ "$copy_spec" =~ ^[A-Za-z_][A-Za-z0-9_]*=[A-Za-z_][A-Za-z0-9_]*$ ]] || \
+      die "invalid --copy-live mapping: $copy_spec (expected TARGET=SOURCE)"
+  done
+  copy_specs_json=$(printf '%s\n' "${copy_live_specs[@]}" | jq -Rn '
+    [inputs | capture("^(?<target>[A-Za-z_][A-Za-z0-9_]*)=(?<source>[A-Za-z_][A-Za-z0-9_]*)$")]
+  ')
+  duplicate_targets=$(jq -r '[.[].target] | group_by(.) | map(select(length > 1) | .[0]) | join(",")' <<<"$copy_specs_json")
+  [[ -z "$duplicate_targets" ]] || die "duplicate --copy-live target key(s): $duplicate_targets"
+  key_count=$(jq 'length' <<<"$copy_specs_json")
+  target_keys_json=$(jq '[.[].target]' <<<"$copy_specs_json")
+  key_list=$(jq -r '.[].target' <<<"$copy_specs_json" | paste -sd, -)
 fi
 
 [[ -n "$ssh_key" && -f "$ssh_key" ]] || die "--ssh-key must name an existing private key"
@@ -233,7 +263,7 @@ cleanup() {
   trap - EXIT INT TERM
   close_api
   close_control
-  unset env_payload
+  unset env_payload existing_envs_json updated_envs_json
   exit "$exit_code"
 }
 trap cleanup EXIT INT TERM
@@ -288,6 +318,52 @@ duplicates_before=$(jq -r --argjson keys "$target_keys_json" '
 ' <<<"$existing_envs_json")
 [[ -z "$duplicates_before" ]] || die "$app_slug already contains duplicate production key(s): $duplicates_before"
 
+if [[ ${#copy_live_specs[@]} -gt 0 ]]; then
+  source_issues=$(jq -r --argjson specs "$copy_specs_json" '
+    [
+      $specs[] as $spec
+      | ([.[] | select(.is_preview == false and .key == $spec.source)] | length) as $count
+      | select($count != 1)
+      | "\($spec.source)=\($count)"
+    ]
+    | unique
+    | join(",")
+  ' <<<"$existing_envs_json")
+  [[ -z "$source_issues" ]] || die "--copy-live source key count must be exactly one: $source_issues"
+
+  empty_sources=$(jq -r --argjson specs "$copy_specs_json" '
+    [
+      $specs[] as $spec
+      | .[]
+      | select(.is_preview == false and .key == $spec.source and ((.value // "") | length) == 0)
+      | $spec.source
+    ]
+    | unique
+    | join(",")
+  ' <<<"$existing_envs_json")
+  [[ -z "$empty_sources" ]] || die "--copy-live source key(s) are empty: $empty_sources"
+
+  env_payload=$(jq --argjson specs "$copy_specs_json" '
+    {
+      data: [
+        $specs[] as $spec
+        | (.[] | select(.is_preview == false and .key == $spec.source)) as $source
+        | {
+            key: $spec.target,
+            value: $source.value,
+            is_preview: false,
+            is_literal: false,
+            is_multiline: ($source.is_multiline // false),
+            is_shown_once: (($source.is_shown_once // false) or ($spec.target | test("PASSWORD|SECRET|PRIVATE_KEY|ACCESS_KEY|API_KEY|AUTH_TOKEN|CLIENT_SECRET|SIGNING_KEY|WEBHOOK_SECRET"; "i"))),
+            is_runtime: true,
+            is_buildtime: true,
+            comment: ("Copied from " + $spec.source + " by update-app-env.sh")
+          }
+      ]
+    }
+  ' <<<"$existing_envs_json")
+fi
+
 printf '%s' "$env_payload" | api PATCH "applications/$application_uuid/envs/bulk" >/dev/null || die "could not update $app_slug environment"
 unset env_payload
 
@@ -314,6 +390,21 @@ missing_after=$(jq -r --argjson keys "$target_keys_json" '
 ' <<<"$updated_envs_json")
 [[ -z "$duplicates_after" ]] || die "$app_slug contains duplicate production key(s) after update: $duplicates_after"
 [[ -z "$missing_after" ]] || die "$app_slug is missing production key(s) after update: $missing_after"
+
+if [[ ${#copy_live_specs[@]} -gt 0 ]]; then
+  copy_mismatches=$(jq -r --argjson specs "$copy_specs_json" '
+    [
+      $specs[] as $spec
+      | ([.[] | select(.is_preview == false and .key == $spec.source)][0].value) as $source_value
+      | ([.[] | select(.is_preview == false and .key == $spec.target)][0].value) as $target_value
+      | select($source_value != $target_value)
+      | $spec.target
+    ]
+    | unique
+    | join(",")
+  ' <<<"$updated_envs_json")
+  [[ -z "$copy_mismatches" ]] || die "$app_slug copied value verification failed for key(s): $copy_mismatches"
+fi
 
 echo "UPDATED: $app_slug now has exactly one production row for $key_count key(s): $key_list"
 

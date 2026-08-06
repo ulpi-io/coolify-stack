@@ -258,24 +258,41 @@ Consoles:
 
 For each project, configure the consent screen, authorized domains, support/developer contacts, scopes, test users while in Testing, and publishing/verification state. Use Web application clients, not Desktop clients.
 
-### GOOGLE-01 — Postiz YouTube and Google Business Profile
+### GOOGLE-01 — ConFYI Post YouTube and Google Business Profile
 
-- [ ] **Status: Finish existing — Core**
-- Reuse the existing Postiz Google project/client; do not make a duplicate solely for Google Business Profile.
-- Enable:
-  - YouTube Data API v3
-  - YouTube Analytics API
-  - Google Business Profile APIs required by `business.manage`
-- Authorized redirect URIs:
+- [ ] **Status: Configured and deployed; Google Business Profile local-post API access remains pending — Core**
+- Existing Google Cloud project retained and renamed to `ConFYI Post`:
+  - Project ID: `postiz-504505`
+  - Project number: `806355414137`
+  - Current resource location: `ciprianspiridon.com`
+  - `cip@opengrowthgroup.co` is an Owner.
+- Existing Web application OAuth client retained and renamed to `ConFYI Post Google Channels`:
+  - Client ID: `806355414137-19hmits7aqp6uhcu9716cscadi4c1b9q.apps.googleusercontent.com`
+- Google Auth branding saved on 2026-08-06:
+  - Application name: `ConFYI Post`
+  - User support and developer contact: `cip@opengrowthgroup.co`
+  - Homepage: `https://con.fyi/con-fyi-post/`
+  - Privacy policy: `https://con.fyi/con-fyi-post/privacy-policy/`
+  - Terms of service: `https://con.fyi/con-fyi-post/terms-of-service/`
+  - Authorized domain: `con.fyi`
+- Audience remains **Internal**. Verification Center reports that verification is not required while the app is Internal; the app was not made External or published.
+- APIs enabled and verified:
+  - [x] YouTube Data API v3 (`youtube.googleapis.com`)
+  - [x] YouTube Analytics API (`youtubeanalytics.googleapis.com`)
+  - [x] My Business Account Management API (`mybusinessaccountmanagement.googleapis.com`)
+  - [x] My Business Business Information API (`mybusinessbusinessinformation.googleapis.com`)
+  - [ ] Google My Business API v4 (`mybusiness.googleapis.com`) for `accounts.locations.localPosts`; this legacy service is access-gated and is not exposed in this project's API Library. Request/obtain Google Business Profile API access and non-zero quota before treating local-post publishing as complete.
+- Authorized redirect URIs saved:
   - `https://post.con.fyi/integrations/social/youtube`
   - `https://post.con.fyi/integrations/social/gmb`
 - Requested scopes include profile/email, YouTube read/write/upload/analytics/partner scopes, and `https://www.googleapis.com/auth/business.manage`.
-- Save the same client pair into both contracts:
+- The same client pair is saved in Coolify under both integration contracts; values were compared in the live container without printing them:
   - `YOUTUBE_CLIENT_ID`
   - `YOUTUBE_CLIENT_SECRET`
   - `GOOGLE_GMB_CLIENT_ID`
   - `GOOGLE_GMB_CLIENT_SECRET`
-- Complete Google verification for sensitive/restricted scopes before relying on non-test users.
+- Production deployment completed on 2026-08-06. Only the Postiz resource was redeployed, and the resulting container was verified healthy.
+- [ ] Before relying on users outside the current Google Workspace organization, change the audience to External and complete Google's verification requirements for the requested sensitive/restricted scopes.
 
 ### GOOGLE-02 — SocialReply sign-in and Google Sheets
 
