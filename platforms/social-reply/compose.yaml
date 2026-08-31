@@ -93,8 +93,6 @@ x-api-dockerfile: &api-dockerfile |
 
   FROM base AS vendor
 
-  ENV BROADCAST_CONNECTION=log
-
   ARG COMPOSER_VERSION=2.10.2
   ARG COMPOSER_SHA256=5ee7125f8a30a34d246cefdc0bc85b8a783b28f2aec968994118512350d28027
 
@@ -124,6 +122,7 @@ x-api-dockerfile: &api-dockerfile |
   COPY . .
 
   RUN set -eux; \
+      export APP_ENV=build BROADCAST_CONNECTION=log; \
       mkdir -p \
           storage/app/private \
           storage/app/public \
